@@ -153,158 +153,175 @@ const INITIAL_QUOTATIONS = [
 ];
 
 // Self-healing database migration and seeding
-async function initializeDatabase() {
-  const client = await pool.connect();
-  try {
-    console.log("Running self-healing database migrations...");
-    
-    // 1. Settings Table
+async function runMigrations(client) {
+  console.log("Running self-healing database migrations...");
+  
+  // 1. Settings Table
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS settings (
+      "id" VARCHAR(50) PRIMARY KEY,
+      "storeName" VARCHAR(255) NOT NULL,
+      "tagline" VARCHAR(255),
+      "established" VARCHAR(50),
+      "address" TEXT,
+      "phone" VARCHAR(100),
+      "email" VARCHAR(255),
+      "gstin" VARCHAR(50),
+      "bankAccountNo" VARCHAR(100),
+      "bankIfsc" VARCHAR(50),
+      "bankName" VARCHAR(100),
+      "terms" JSONB,
+      "whatsappTemplate" TEXT
+    )
+  `);
+
+  // 2. Products Table
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS products (
+      "id" VARCHAR(50) PRIMARY KEY,
+      "name" VARCHAR(255) NOT NULL,
+      "sku" VARCHAR(100),
+      "brand" VARCHAR(100),
+      "category" VARCHAR(100),
+      "price" NUMERIC(12, 2) DEFAULT 0.00,
+      "gst" INTEGER DEFAULT 18,
+      "stock" INTEGER DEFAULT 0,
+      "warranty" VARCHAR(100)
+    )
+  `);
+
+  // 3. Customers Table
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS customers (
+      "id" VARCHAR(50) PRIMARY KEY,
+      "name" VARCHAR(255) NOT NULL,
+      "phone" VARCHAR(50),
+      "email" VARCHAR(255),
+      "address" TEXT,
+      "gst" VARCHAR(50)
+    )
+  `);
+
+  // 4. Quotations Table
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS quotations (
+      "id" VARCHAR(50) PRIMARY KEY,
+      "quotationNumber" VARCHAR(100) UNIQUE NOT NULL,
+      "date" VARCHAR(50) NOT NULL,
+      "expiryDate" VARCHAR(50),
+      "customerId" VARCHAR(50) REFERENCES customers("id") ON DELETE SET NULL,
+      "customerName" VARCHAR(255),
+      "status" VARCHAR(50) DEFAULT 'Pending',
+      "items" JSONB NOT NULL,
+      "subtotal" NUMERIC(12, 2) NOT NULL,
+      "gstTotal" NUMERIC(12, 2) NOT NULL,
+      "discount" NUMERIC(12, 2) DEFAULT 0.00,
+      "grandTotal" NUMERIC(12, 2) NOT NULL,
+      "terms" JSONB,
+      "bankDetails" JSONB,
+      "shareHash" VARCHAR(255)
+    )
+  `);
+
+  console.log("Checking if seed data is needed...");
+
+  // Seed Settings
+  const settingsRes = await client.query('SELECT COUNT(*) FROM settings');
+  if (parseInt(settingsRes.rows[0].count, 10) === 0) {
+    console.log("Seeding default settings...");
     await client.query(`
-      CREATE TABLE IF NOT EXISTS settings (
-        "id" VARCHAR(50) PRIMARY KEY,
-        "storeName" VARCHAR(255) NOT NULL,
-        "tagline" VARCHAR(255),
-        "established" VARCHAR(50),
-        "address" TEXT,
-        "phone" VARCHAR(100),
-        "email" VARCHAR(255),
-        "gstin" VARCHAR(50),
-        "bankAccountNo" VARCHAR(100),
-        "bankIfsc" VARCHAR(50),
-        "bankName" VARCHAR(100),
-        "terms" JSONB,
-        "whatsappTemplate" TEXT
-      )
-    `);
+      INSERT INTO settings (
+        "id", "storeName", "tagline", "established", "address", "phone", "email", 
+        "gstin", "bankAccountNo", "bankIfsc", "bankName", "terms", "whatsappTemplate"
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+    `, [
+      'default',
+      DEFAULT_SETTINGS.storeName,
+      DEFAULT_SETTINGS.tagline,
+      DEFAULT_SETTINGS.established,
+      DEFAULT_SETTINGS.address,
+      DEFAULT_SETTINGS.phone,
+      DEFAULT_SETTINGS.email,
+      DEFAULT_SETTINGS.gstin,
+      DEFAULT_SETTINGS.bankAccountNo,
+      DEFAULT_SETTINGS.bankIfsc,
+      DEFAULT_SETTINGS.bankName,
+      JSON.stringify(DEFAULT_SETTINGS.terms),
+      DEFAULT_SETTINGS.whatsappTemplate
+    ]);
+  }
 
-    // 2. Products Table
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS products (
-        "id" VARCHAR(50) PRIMARY KEY,
-        "name" VARCHAR(255) NOT NULL,
-        "sku" VARCHAR(100),
-        "brand" VARCHAR(100),
-        "category" VARCHAR(100),
-        "price" NUMERIC(12, 2) DEFAULT 0.00,
-        "gst" INTEGER DEFAULT 18,
-        "stock" INTEGER DEFAULT 0,
-        "warranty" VARCHAR(100)
-      )
-    `);
-
-    // 3. Customers Table
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS customers (
-        "id" VARCHAR(50) PRIMARY KEY,
-        "name" VARCHAR(255) NOT NULL,
-        "phone" VARCHAR(50),
-        "email" VARCHAR(255),
-        "address" TEXT,
-        "gst" VARCHAR(50)
-      )
-    `);
-
-    // 4. Quotations Table
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS quotations (
-        "id" VARCHAR(50) PRIMARY KEY,
-        "quotationNumber" VARCHAR(100) UNIQUE NOT NULL,
-        "date" VARCHAR(50) NOT NULL,
-        "expiryDate" VARCHAR(50),
-        "customerId" VARCHAR(50) REFERENCES customers(id) ON DELETE SET NULL,
-        "customerName" VARCHAR(255),
-        "status" VARCHAR(50) DEFAULT 'Pending',
-        "items" JSONB NOT NULL,
-        "subtotal" NUMERIC(12, 2) NOT NULL,
-        "gstTotal" NUMERIC(12, 2) NOT NULL,
-        "discount" NUMERIC(12, 2) DEFAULT 0.00,
-        "grandTotal" NUMERIC(12, 2) NOT NULL,
-        "terms" JSONB,
-        "bankDetails" JSONB,
-        "shareHash" VARCHAR(255)
-      )
-    `);
-
-    console.log("Checking if seed data is needed...");
-
-    // Seed Settings
-    const settingsRes = await client.query('SELECT COUNT(*) FROM settings');
-    if (parseInt(settingsRes.rows[0].count, 10) === 0) {
-      console.log("Seeding default settings...");
+  // Seed Products
+  const productsRes = await client.query('SELECT COUNT(*) FROM products');
+  if (parseInt(productsRes.rows[0].count, 10) === 0) {
+    console.log("Seeding initial products...");
+    for (const p of INITIAL_PRODUCTS) {
       await client.query(`
-        INSERT INTO settings (
-          "id", "storeName", "tagline", "established", "address", "phone", "email", 
-          "gstin", "bankAccountNo", "bankIfsc", "bankName", "terms", "whatsappTemplate"
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+        INSERT INTO products ("id", "name", "sku", "brand", "category", "price", "gst", "stock", "warranty")
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      `, [p.id, p.name, p.sku, p.brand, p.category, p.price, p.gst, p.stock, p.warranty]);
+    }
+  }
+
+  // Seed Customers
+  const customersRes = await client.query('SELECT COUNT(*) FROM customers');
+  if (parseInt(customersRes.rows[0].count, 10) === 0) {
+    console.log("Seeding initial customers...");
+    for (const c of INITIAL_CUSTOMERS) {
+      await client.query(`
+        INSERT INTO customers ("id", "name", "phone", "email", "address", "gst")
+        VALUES ($1, $2, $3, $4, $5, $6)
+      `, [c.id, c.name, c.phone, c.email, c.address, c.gst]);
+    }
+  }
+
+  // Seed Quotations
+  const quotationsRes = await client.query('SELECT COUNT(*) FROM quotations');
+  if (parseInt(quotationsRes.rows[0].count, 10) === 0) {
+    console.log("Seeding initial quotations...");
+    for (const q of INITIAL_QUOTATIONS) {
+      await client.query(`
+        INSERT INTO quotations (
+          "id", "quotationNumber", "date", "expiryDate", "customerId", "customerName", 
+          "status", "items", "subtotal", "gstTotal", "discount", "grandTotal", "terms", "bankDetails", "shareHash"
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
       `, [
-        'default',
-        DEFAULT_SETTINGS.storeName,
-        DEFAULT_SETTINGS.tagline,
-        DEFAULT_SETTINGS.established,
-        DEFAULT_SETTINGS.address,
-        DEFAULT_SETTINGS.phone,
-        DEFAULT_SETTINGS.email,
-        DEFAULT_SETTINGS.gstin,
-        DEFAULT_SETTINGS.bankAccountNo,
-        DEFAULT_SETTINGS.bankIfsc,
-        DEFAULT_SETTINGS.bankName,
-        JSON.stringify(DEFAULT_SETTINGS.terms),
-        DEFAULT_SETTINGS.whatsappTemplate
+        q.id, q.quotationNumber, q.date, q.expiryDate, q.customerId, q.customerName,
+        q.status, JSON.stringify(q.items), q.subtotal, q.gstTotal, q.discount, q.grandTotal,
+        JSON.stringify(q.terms), JSON.stringify(q.bankDetails), q.shareHash
       ]);
     }
-
-    // Seed Products
-    const productsRes = await client.query('SELECT COUNT(*) FROM products');
-    if (parseInt(productsRes.rows[0].count, 10) === 0) {
-      console.log("Seeding initial products...");
-      for (const p of INITIAL_PRODUCTS) {
-        await client.query(`
-          INSERT INTO products ("id", "name", "sku", "brand", "category", "price", "gst", "stock", "warranty")
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-        `, [p.id, p.name, p.sku, p.brand, p.category, p.price, p.gst, p.stock, p.warranty]);
-      }
-    }
-
-    // Seed Customers
-    const customersRes = await client.query('SELECT COUNT(*) FROM customers');
-    if (parseInt(customersRes.rows[0].count, 10) === 0) {
-      console.log("Seeding initial customers...");
-      for (const c of INITIAL_CUSTOMERS) {
-        await client.query(`
-          INSERT INTO customers ("id", "name", "phone", "email", "address", "gst")
-          VALUES ($1, $2, $3, $4, $5, $6)
-        `, [c.id, c.name, c.phone, c.email, c.address, c.gst]);
-      }
-    }
-
-    // Seed Quotations
-    const quotationsRes = await client.query('SELECT COUNT(*) FROM quotations');
-    if (parseInt(quotationsRes.rows[0].count, 10) === 0) {
-      console.log("Seeding initial quotations...");
-      for (const q of INITIAL_QUOTATIONS) {
-        await client.query(`
-          INSERT INTO quotations (
-            "id", "quotationNumber", "date", "expiryDate", "customerId", "customerName", 
-            "status", "items", "subtotal", "gstTotal", "discount", "grandTotal", "terms", "bankDetails", "shareHash"
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
-        `, [
-          q.id, q.quotationNumber, q.date, q.expiryDate, q.customerId, q.customerName,
-          q.status, JSON.stringify(q.items), q.subtotal, q.gstTotal, q.discount, q.grandTotal,
-          JSON.stringify(q.terms), JSON.stringify(q.bankDetails), q.shareHash
-        ]);
-      }
-    }
-
-    console.log("Migrations and seeding complete!");
-  } catch (err) {
-    console.error("Database Migration Error:", err);
-  } finally {
-    client.release();
   }
+
+  console.log("Migrations and seeding complete!");
 }
 
-// Run DB Setup
-initializeDatabase().catch(err => console.error("Initial DB connection failed:", err));
+async function initializeDatabaseWithRetry(retries = 15, delay = 3000) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      console.log(`Connecting to database (Attempt ${i + 1}/${retries})...`);
+      const client = await pool.connect();
+      console.log("✅ Successfully established database connection!");
+      
+      try {
+        await runMigrations(client);
+      } finally {
+        client.release();
+      }
+      return; // Success
+    } catch (err) {
+      console.error(`Database connection attempt ${i + 1} failed:`, err.message);
+      if (i < retries - 1) {
+        console.log(`Retrying in ${delay / 1000} seconds...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+  console.error("❌ Could not connect to the database after maximum retries. Migrations skipped.");
+}
+
+// Run DB Setup with Retry loop
+initializeDatabaseWithRetry();
 
 // ==========================================
 // API ENDPOINTS
