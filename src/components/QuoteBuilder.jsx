@@ -149,6 +149,7 @@ export default function QuoteBuilder({
   products, 
   customers, 
   settings, 
+  quotations = [],
   onSaveQuotation, 
   onUpdateProduct,
   setActiveTab,
@@ -266,13 +267,7 @@ export default function QuoteBuilder({
       }
 
       // Generate the sequential date prefix KPB-DDMMYY-XX pattern
-      let loadedQuotations = [];
-      try {
-        const stored = window.localStorage.getItem("kpb_quotations");
-        if (stored) loadedQuotations = JSON.parse(stored);
-      } catch (e) {
-        console.error("Error parsing kpb_quotations:", e);
-      }
+      const loadedQuotations = quotations || [];
       
       const generateNewQuoteNumber = (dateStr) => {
         const d = dateStr ? new Date(dateStr) : new Date();
@@ -300,7 +295,7 @@ export default function QuoteBuilder({
       setDiscountValue(0);
       setSelectedTerms([...(settings?.terms || [])]);
     }
-  }, [editingQuotationDraft, customers, quoteDate]);
+  }, [editingQuotationDraft, customers, quoteDate, quotations]);
 
   // Handle component selection price updates
   const handlePcComponentChange = (field, id) => {
@@ -589,7 +584,7 @@ export default function QuoteBuilder({
         gpuId: "", gpuPrice: 0, gpuQty: 2, gpuCustomName: ""
       });
       
-      const loadedQuotations = JSON.parse(window.localStorage.getItem("kpb_quotations")) || [];
+      const loadedQuotations = quotations || [];
       const generateNewQuoteNumber = (dateStr) => {
         const d = dateStr ? new Date(dateStr) : new Date();
         const DD = String(d.getDate()).padStart(2, "0");

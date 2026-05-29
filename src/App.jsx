@@ -352,6 +352,7 @@ export default function App() {
             products={products}
             customers={customers}
             settings={settings}
+            quotations={quotations}
             onSaveQuotation={handleSaveQuotation}
             onUpdateProduct={handleUpdateProduct}
             setActiveTab={setActiveTab}
