@@ -156,6 +156,10 @@ export default function App() {
         body: JSON.stringify(newSettings)
       });
       const data = await res.json();
+      if (data && data.error) {
+        alert(`Failed to save settings: ${data.error}`);
+        return;
+      }
       setSettings(data);
     } catch (error) {
       console.error("Error saving settings:", error);
@@ -177,6 +181,10 @@ export default function App() {
           body: JSON.stringify(payloads)
         });
         const data = await res.json();
+        if (data && data.error) {
+          alert(`Failed to add products: ${data.error}`);
+          return;
+        }
         setProducts([...products, ...data]);
       } else {
         const payload = {
@@ -189,6 +197,10 @@ export default function App() {
           body: JSON.stringify(payload)
         });
         const data = await res.json();
+        if (data && data.error) {
+          alert(`Failed to add product: ${data.error}`);
+          return;
+        }
         setProducts([...products, data]);
       }
     } catch (error) {
@@ -207,6 +219,10 @@ export default function App() {
         body: JSON.stringify(payload)
       });
       const data = await res.json();
+      if (data && data.error) {
+        alert(`Failed to update product: ${data.error}`);
+        return;
+      }
       setProducts(products.map(p => p.id === id ? data : p));
     } catch (error) {
       console.error("Error updating product:", error);
@@ -217,7 +233,12 @@ export default function App() {
   const handleDeleteProduct = async (id) => {
     if (window.confirm("Are you sure you want to delete this product?")) {
       try {
-        await fetch(`/api/products/${id}`, { method: 'DELETE' });
+        const res = await fetch(`/api/products/${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (data && data.error) {
+          alert(`Failed to delete product: ${data.error}`);
+          return;
+        }
         setProducts(products.filter(p => p.id !== id));
       } catch (error) {
         console.error("Error deleting product:", error);
@@ -239,11 +260,16 @@ export default function App() {
         body: JSON.stringify(payload)
       });
       const data = await res.json();
+      if (data && data.error) {
+        alert(`Failed to add customer: ${data.error}`);
+        return null;
+      }
       setCustomers([...customers, data]);
       return data;
     } catch (error) {
       console.error("Error adding customer:", error);
       alert("Failed to add customer.");
+      return null;
     }
   };
 
@@ -257,6 +283,10 @@ export default function App() {
         body: JSON.stringify(payload)
       });
       const data = await res.json();
+      if (data && data.error) {
+        alert(`Failed to update customer: ${data.error}`);
+        return;
+      }
       setCustomers(customers.map(c => c.id === id ? data : c));
     } catch (error) {
       console.error("Error updating customer:", error);
@@ -267,7 +297,12 @@ export default function App() {
   const handleDeleteCustomer = async (id) => {
     if (window.confirm("Are you sure you want to delete this customer record?")) {
       try {
-        await fetch(`/api/customers/${id}`, { method: 'DELETE' });
+        const res = await fetch(`/api/customers/${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (data && data.error) {
+          alert(`Failed to delete customer: ${data.error}`);
+          return;
+        }
         setCustomers(customers.filter(c => c.id !== id));
       } catch (error) {
         console.error("Error deleting customer:", error);
@@ -296,6 +331,10 @@ export default function App() {
         body: JSON.stringify(payloadWithHash)
       });
       const savedData = await res.json();
+      if (savedData && savedData.error) {
+        alert(`Failed to save quotation record: ${savedData.error}`);
+        return;
+      }
 
       let updated;
       if (exists) {
@@ -307,7 +346,7 @@ export default function App() {
       
       // Stock sync: if transitioning to Approved, sync products stock
       if (savedData.status === "Approved" && oldStatus !== "Approved") {
-        const updatedProducts = await fetch('/api/products').then(res => res.json());
+        const updatedProducts = await fetch('/api/products').then(res => res.json()).catch(err => []);
         if (Array.isArray(updatedProducts)) setProducts(updatedProducts);
       }
     } catch (error) {
