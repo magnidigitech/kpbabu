@@ -21,6 +21,7 @@ app.use(express.json({ limit: '10mb' }));
 
 // Database connection
 const { Pool } = pg;
+const isProduction = process.env.NODE_ENV === 'production';
 
 // In Coolify/production we connect using DATABASE_URL. In development, we use DATABASE_URL or fallback to local postgres setup
 const connectionString = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/kpbabu';
