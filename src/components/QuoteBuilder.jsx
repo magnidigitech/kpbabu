@@ -208,6 +208,7 @@ export default function QuoteBuilder({
 
   const [customWriteIn, setCustomWriteIn] = useState({
     description: "",
+    specs: "",
     price: "",
     gst: "18",
     qty: 1
@@ -691,6 +692,7 @@ export default function QuoteBuilder({
 
   const handleAddWriteIn = () => {
     const desc = customWriteIn.description;
+    const specs = customWriteIn.specs || "";
     const qty = parseInt(customWriteIn.qty) || 1;
     const price = parseFloat(customWriteIn.price) || 0;
     const gstRate = parseInt(customWriteIn.gst) || 18;
@@ -700,10 +702,14 @@ export default function QuoteBuilder({
       return;
     }
 
+    const fullDescription = specs.trim()
+      ? `${desc.trim()}\n${specs.trim()}`
+      : desc.trim();
+
     const payload = {
       id: `custom-line-${Date.now()}`,
       productId: "custom-write-in",
-      description: desc,
+      description: fullDescription,
       qty,
       unitPrice: price,
       gstRate,
@@ -713,6 +719,7 @@ export default function QuoteBuilder({
     setAddedItems([...addedItems, payload]);
     setCustomWriteIn({
       description: "",
+      specs: "",
       price: "",
       gst: "18",
       qty: 1
@@ -1420,10 +1427,18 @@ export default function QuoteBuilder({
                 
                 <input 
                   type="text" 
-                  placeholder="Custom Item Title specs..." 
+                  placeholder="Item Name (e.g. HP Pavilion Laptop)" 
                   value={customWriteIn.description}
                   onChange={(e) => setCustomWriteIn({...customWriteIn, description: e.target.value})}
-                  className="glass-input px-3.5 py-2.5 rounded-xl text-xs w-full"
+                  className="glass-input px-3.5 py-2.5 rounded-xl text-xs w-full font-bold"
+                />
+
+                <textarea 
+                  rows="2"
+                  placeholder="Specifications / Subtext (e.g. Core i5, 16GB RAM, 512GB SSD)..." 
+                  value={customWriteIn.specs || ""}
+                  onChange={(e) => setCustomWriteIn({...customWriteIn, specs: e.target.value})}
+                  className="glass-input px-3.5 py-2 rounded-xl text-xs w-full resize-none font-semibold text-slate-600"
                 />
 
                 <div className="grid grid-cols-3 gap-2">
