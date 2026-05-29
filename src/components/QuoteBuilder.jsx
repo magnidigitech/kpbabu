@@ -146,27 +146,15 @@ function SearchableDropdown({
 }
 
 export default function QuoteBuilder({ 
-  products, 
   customers, 
   settings, 
   quotations = [],
   onSaveQuotation, 
-  onUpdateProduct,
   setActiveTab,
   editingQuotationDraft,
   clearEditingDraft
 }) {
   
-  // Custom PC components categorizations for the builder preset
-  const cpuList = products.filter(p => p.category === "Processors");
-  const mbList = products.filter(p => p.category === "Motherboards");
-  const ramList = products.filter(p => p.category === "RAM");
-  const ssdList = products.filter(p => p.category === "Storage");
-  const cabList = products.filter(p => p.category === "Cabinets");
-  const smpsList = products.filter(p => p.category === "SMPS");
-  const lqList = products.filter(p => p.category === "Coolers");
-  const gpuList = products.filter(p => p.category === "Graphics Cards");
-
   // Core Quote Builder States
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
   const [customerSearchQuery, setCustomerSearchQuery] = useState("");
@@ -186,25 +174,7 @@ export default function QuoteBuilder({
     name: "", phone: "", email: "", address: "", gst: ""
   });
 
-  // Custom Build PC Preset Panel states
-  const [showPcBuilder, setShowPcBuilder] = useState(false);
-  const [pcConfig, setPcConfig] = useState({
-    cpuId: "", cpuPrice: 0, cpuCustomName: "",
-    mbId: "", mbPrice: 0, mbCustomName: "",
-    ramId: "", ramPrice: 0, ramQty: 2, ramCustomName: "",
-    ssd1Id: "", ssd1Price: 0, ssd1CustomName: "",
-    ssd2Id: "", ssd2Price: 0, ssd2CustomName: "",
-    cabId: "", cabPrice: 0, cabCustomName: "",
-    smpsId: "", smpsPrice: 0, smpsCustomName: "",
-    lqId: "", lqPrice: 0, lqCustomName: "",
-    gpuId: "", gpuPrice: 0, gpuQty: 2, gpuCustomName: ""
-  });
-
   const [toast, setToast] = useState(null);
-
-  // Product Selection Modal/States for Standard Items
-  const [standardSearch, setStandardSearch] = useState("");
-  const [selectedProductId, setSelectedProductId] = useState("");
 
   const [customWriteIn, setCustomWriteIn] = useState({
     description: "",
@@ -213,12 +183,6 @@ export default function QuoteBuilder({
     gst: "18",
     qty: 1
   });
-
-  const searchedProducts = standardSearch.toLowerCase().trim() === ""
-    ? []
-    : products
-        .filter(p => !p.category.includes("Processors") && !p.category.includes("Motherboards"))
-        .filter(p => p.name.toLowerCase().includes(standardSearch.toLowerCase().trim()));
 
   // Click outside listener for customer dropdown
   useEffect(() => {
@@ -298,92 +262,7 @@ export default function QuoteBuilder({
     }
   }, [editingQuotationDraft, customers, quoteDate, quotations]);
 
-  // Handle component selection price updates
-  const handlePcComponentChange = (field, id) => {
-    let price = 0;
-    let customName = "";
 
-    if (id && id !== "custom") {
-      const prod = products.find(p => p.id === id);
-      if (prod) {
-        price = prod.price;
-        customName = prod.name;
-      }
-    }
-
-    setPcConfig(prev => ({
-      ...prev,
-      [`${field}Id`]: id,
-      [`${field}Price`]: price,
-      [`${field}CustomName`]: customName
-    }));
-  };
-
-  // Compile Custom PC config into a single Line Item
-  const handleCompileCustomPc = () => {
-    const lines = ["Custom Build PC:"];
-    let totalPcCost = 0;
-
-    const addLine = (label, configId, configName, configPrice, qty = 1) => {
-      let name = "";
-      let price = parseFloat(configPrice) || 0;
-
-      if (configId === "custom") {
-        name = configName;
-      } else if (configId) {
-        const prod = products.find(p => p.id === configId);
-        name = prod ? prod.name : "";
-      }
-
-      if (name) {
-        const formattedLabel = label ? `${label}: ` : "";
-        const formattedQty = qty > 1 ? `${qty} x ` : "";
-        lines.push(`${formattedLabel}${formattedQty}${name}`);
-        totalPcCost += price * qty;
-      }
-    };
-
-    addLine("Processor", pcConfig.cpuId, pcConfig.cpuCustomName, pcConfig.cpuPrice);
-    addLine("MotherBoard", pcConfig.mbId, pcConfig.mbCustomName, pcConfig.mbPrice);
-    addLine("RAM", pcConfig.ramId, pcConfig.ramCustomName, pcConfig.ramPrice, pcConfig.ramQty);
-    addLine("Storage", pcConfig.ssd1Id, pcConfig.ssd1CustomName, pcConfig.ssd1Price);
-    addLine("Secondary Storage", pcConfig.ssd2Id, pcConfig.ssd2CustomName, pcConfig.ssd2Price);
-    addLine("Cabinet", pcConfig.cabId, pcConfig.cabCustomName, pcConfig.cabPrice);
-    addLine("SMPS", pcConfig.smpsId, pcConfig.smpsCustomName, pcConfig.smpsPrice);
-    addLine("LQ", pcConfig.lqId, pcConfig.lqCustomName, pcConfig.lqPrice);
-    addLine("Graphics", pcConfig.gpuId, pcConfig.gpuCustomName, pcConfig.gpuPrice, pcConfig.gpuQty);
-
-    if (lines.length === 1) {
-      alert("Please select or write in at least one computer component to package a Custom Build PC.");
-      return;
-    }
-
-    const compiledPayload = {
-      id: `compiled-${Date.now()}`,
-      productId: "custom-build-pc",
-      description: lines.join("\n"),
-      qty: 1,
-      unitPrice: totalPcCost,
-      gstRate: 18,
-      totalPrice: totalPcCost
-    };
-
-    setAddedItems([...addedItems, compiledPayload]);
-
-    // Reset Builder inputs
-    setPcConfig({
-      cpuId: "", cpuPrice: 0, cpuCustomName: "",
-      mbId: "", mbPrice: 0, mbCustomName: "",
-      ramId: "", ramPrice: 0, ramQty: 2, ramCustomName: "",
-      ssd1Id: "", ssd1Price: 0, ssd1CustomName: "",
-      ssd2Id: "", ssd2Price: 0, ssd2CustomName: "",
-      cabId: "", cabPrice: 0, cabCustomName: "",
-      smpsId: "", smpsPrice: 0, smpsCustomName: "",
-      lqId: "", lqPrice: 0, lqCustomName: "",
-      gpuId: "", gpuPrice: 0, gpuQty: 2, gpuCustomName: ""
-    });
-    setShowPcBuilder(false);
-  };
 
   // Filter clients based on query patterns
   const filteredCustomers = customers.filter(c => {
@@ -408,142 +287,7 @@ export default function QuoteBuilder({
     }).format(val);
   };
 
-  const isComponentPriceOverridden = (field, id, currentPrice) => {
-    if (!id || id === "custom") return false;
-    const prod = products.find(p => p.id === id);
-    if (!prod) return false;
-    return prod.price !== currentPrice;
-  };
 
-  const isLineItemPriceOverridden = (item) => {
-    if (!item.productId || item.productId === "custom-write-in" || item.productId === "custom-build-pc") return false;
-    const prod = products.find(p => p.id === item.productId);
-    if (!prod) return false;
-    return prod.price !== item.unitPrice;
-  };
-
-  const handleSaveComponentPriceToCatalog = (id, newPrice) => {
-    const prod = products.find(p => p.id === id);
-    if (!prod) return;
-    const previousPrice = prod.price;
-
-    if (!onUpdateProduct) {
-      alert("Unable to update master catalog: onUpdateProduct callback is missing.");
-      return;
-    }
-
-    onUpdateProduct(id, { price: newPrice });
-
-    // Show custom toast at bottom center with Undo option
-    setToast({
-      id: `toast-${Date.now()}`,
-      productId: id,
-      itemName: prod.name,
-      prevPrice: previousPrice,
-      newPrice: newPrice,
-      isUndone: false
-    });
-  };
-
-  const handleUndoPriceUpdate = (toastItem) => {
-    if (!onUpdateProduct) return;
-    
-    // Revert the price back in the master catalog
-    onUpdateProduct(toastItem.productId, { price: toastItem.prevPrice });
-
-    // Revert the active spec builder price in QuoteBuilder state
-    setPcConfig(prev => {
-      let updated = { ...prev };
-      if (prev.cpuId === toastItem.productId) updated.cpuPrice = toastItem.prevPrice;
-      if (prev.mbId === toastItem.productId) updated.mbPrice = toastItem.prevPrice;
-      if (prev.ramId === toastItem.productId) updated.ramPrice = toastItem.prevPrice;
-      if (prev.ssd1Id === toastItem.productId) updated.ssd1Price = toastItem.prevPrice;
-      if (prev.ssd2Id === toastItem.productId) updated.ssd2Price = toastItem.prevPrice;
-      if (prev.cabId === toastItem.productId) updated.cabPrice = toastItem.prevPrice;
-      if (prev.smpsId === toastItem.productId) updated.smpsPrice = toastItem.prevPrice;
-      if (prev.lqId === toastItem.productId) updated.lqPrice = toastItem.prevPrice;
-      if (prev.gpuId === toastItem.productId) updated.gpuPrice = toastItem.prevPrice;
-      return updated;
-    });
-
-    // Revert the active line items unitPrice in QuoteBuilder draft
-    setAddedItems(prev => prev.map(item => {
-      if (item.productId === toastItem.productId) {
-        return {
-          ...item,
-          unitPrice: toastItem.prevPrice,
-          totalPrice: item.qty * toastItem.prevPrice
-        };
-      }
-      return item;
-    }));
-
-    // Update toast status to show Undo success
-    setToast(prev => ({
-      ...prev,
-      isUndone: true
-    }));
-  };
-
-  // Toast Auto-Dismiss Lifecycle
-  useEffect(() => {
-    if (!toast) return;
-    const duration = toast.isUndone ? 3000 : 7000;
-    const timer = setTimeout(() => {
-      setToast(null);
-    }, duration);
-    return () => clearTimeout(timer);
-  }, [toast]);
-
-  const handleAddCustomLineItem = (e) => {
-    e.preventDefault();
-    const fd = new FormData(e.target);
-    const desc = fd.get("description");
-    const qty = parseInt(fd.get("qty")) || 1;
-    const price = parseFloat(fd.get("price")) || 0;
-
-    if (!desc.trim()) return;
-
-    const payload = {
-      id: `custom-line-${Date.now()}`,
-      productId: "custom-write-in",
-      description: desc,
-      qty,
-      unitPrice: price,
-      totalPrice: price * qty
-    };
-
-    setAddedItems([...addedItems, payload]);
-    e.target.reset();
-  };
-
-  const handleSelectProductItem = (id) => {
-    if (!id) return;
-    const prod = products.find(p => p.id === id);
-    if (!prod) return;
-
-    // Check if already added
-    const existsIdx = addedItems.findIndex(item => item.productId === id);
-    if (existsIdx > -1) {
-      const updated = [...addedItems];
-      updated[existsIdx].qty += 1;
-      updated[existsIdx].totalPrice = updated[existsIdx].qty * updated[existsIdx].unitPrice;
-      setAddedItems(updated);
-    } else {
-      const payload = {
-        id: `item-${Date.now()}`,
-        productId: prod.id,
-        description: prod.name,
-        qty: 1,
-        unitPrice: prod.price,
-        gstRate: prod.gst || 18,
-        totalPrice: prod.price
-      };
-      setAddedItems([...addedItems, payload]);
-    }
-    setSelectedProductId("");
-    setStandardSearch("");
-  };
 
   const handleUpdateItemQty = (id, newQty) => {
     const qty = Math.max(1, newQty);
@@ -573,17 +317,6 @@ export default function QuoteBuilder({
       setCustomerSearchQuery("");
       setAddedItems([]);
       setDiscountValue(0);
-      setPcConfig({
-        cpuId: "", cpuPrice: 0, cpuCustomName: "",
-        mbId: "", mbPrice: 0, mbCustomName: "",
-        ramId: "", ramPrice: 0, ramQty: 2, ramCustomName: "",
-        ssd1Id: "", ssd1Price: 0, ssd1CustomName: "",
-        ssd2Id: "", ssd2Price: 0, ssd2CustomName: "",
-        cabId: "", cabPrice: 0, cabCustomName: "",
-        smpsId: "", smpsPrice: 0, smpsCustomName: "",
-        lqId: "", lqPrice: 0, lqCustomName: "",
-        gpuId: "", gpuPrice: 0, gpuQty: 2, gpuCustomName: ""
-      });
       
       const loadedQuotations = quotations || [];
       const generateNewQuoteNumber = (dateStr) => {
@@ -682,13 +415,7 @@ export default function QuoteBuilder({
     }
   };
 
-  const handleAddStandardProduct = () => {
-    if (!selectedProductId) {
-      alert("Please select a product first.");
-      return;
-    }
-    handleSelectProductItem(selectedProductId);
-  };
+
 
   const handleAddWriteIn = () => {
     const desc = customWriteIn.description;
@@ -912,548 +639,57 @@ export default function QuoteBuilder({
             </div>
           </div>
 
-          {/* Section 2: Custom PC presets engine */}
-          <div className="glass-card rounded-2xl overflow-hidden bg-white border border-slate-200">
-            <button
-              type="button"
-              onClick={() => setShowPcBuilder(!showPcBuilder)}
-              className="w-full p-5 flex items-center justify-between text-left font-extrabold text-sm text-slate-900 hover:bg-slate-50 transition-colors"
-            >
-              <span className="flex items-center space-x-2">
-                <Cpu className="h-4.5 w-4.5 text-brand-blue-dark" />
-                <span>Custom PC Builder Tool</span>
-              </span>
-              {showPcBuilder ? <ChevronUp className="h-4.5 w-4.5 text-slate-500" /> : <ChevronDown className="h-4.5 w-4.5 text-slate-500" />}
-            </button>
-
-            {showPcBuilder && (
-              <div className="p-5 border-t border-slate-100 bg-slate-50/20 space-y-4">
-                <div className="p-3 bg-brand-blue-dark/5 border border-brand-blue-dark/10 rounded-xl text-[10px] text-brand-blue-dark leading-relaxed mb-2 font-semibold">
-                  Configure custom hardware specs. Price feeds are pulled from inventory catalog. Custom components or prices can be entered manually by selecting "Custom Write-In".
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-slate-700">
-                  {/* CPU Searchable autocomplete */}
-                  <div className="space-y-1.5">
-                    <SearchableDropdown 
-                      label="CPU Processor" 
-                      placeholder="-- Select CPU --" 
-                      list={cpuList} 
-                      selectedValue={pcConfig.cpuId} 
-                      onSelect={(id) => handlePcComponentChange("cpu", id)}
-                    />
-                    
-                    {pcConfig.cpuId !== "" && (
-                      <div className="flex space-x-2 animate-fadeIn mt-2">
-                        {pcConfig.cpuId === "custom" && (
-                          <input 
-                            type="text" placeholder="Custom Spec Title" value={pcConfig.cpuCustomName}
-                            onChange={(e) => setPcConfig({...pcConfig, cpuCustomName: e.target.value})}
-                            className="glass-input px-3 py-2 rounded-xl text-xs flex-1 animate-fadeIn"
-                          />
-                        )}
-                        <div className="flex items-center space-x-1 shrink-0">
-                          <div className="relative w-32">
-                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 font-bold">INR</span>
-                            <input 
-                              type="number" placeholder="Price" value={pcConfig.cpuPrice || ""}
-                              onChange={(e) => setPcConfig({...pcConfig, cpuPrice: parseFloat(e.target.value) || 0})}
-                              className="glass-input pl-10 pr-3 py-2 rounded-xl text-xs w-full text-right font-bold focus:border-brand-blue-dark"
-                            />
-                          </div>
-                          {isComponentPriceOverridden("cpu", pcConfig.cpuId, pcConfig.cpuPrice) && (
-                            <button
-                              type="button"
-                              onClick={() => handleSaveComponentPriceToCatalog(pcConfig.cpuId, pcConfig.cpuPrice)}
-                              className="p-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 hover:text-emerald-700 rounded-xl border border-emerald-200 transition-all cursor-pointer shadow-sm shrink-0"
-                              title="Update Master Catalog Price"
-                            >
-                              <Save className="h-3.5 w-3.5" />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Motherboard Searchable Autocomplete */}
-                  <div className="space-y-1.5">
-                    <SearchableDropdown 
-                      label="Motherboard" 
-                      placeholder="-- Select Board --" 
-                      list={mbList} 
-                      selectedValue={pcConfig.mbId} 
-                      onSelect={(id) => handlePcComponentChange("mb", id)}
-                    />
-                    
-                    {pcConfig.mbId !== "" && (
-                      <div className="flex space-x-2 animate-fadeIn mt-2">
-                        {pcConfig.mbId === "custom" && (
-                          <input 
-                            type="text" placeholder="Custom Spec Title" value={pcConfig.mbCustomName}
-                            onChange={(e) => setPcConfig({...pcConfig, mbCustomName: e.target.value})}
-                            className="glass-input px-3 py-2 rounded-xl text-xs flex-1 animate-fadeIn"
-                          />
-                        )}
-                        <div className="flex items-center space-x-1 shrink-0">
-                          <div className="relative w-32">
-                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 font-bold">INR</span>
-                            <input 
-                              type="number" placeholder="Price" value={pcConfig.mbPrice || ""}
-                              onChange={(e) => setPcConfig({...pcConfig, mbPrice: parseFloat(e.target.value) || 0})}
-                              className="glass-input pl-10 pr-3 py-2 rounded-xl text-xs w-full text-right font-bold focus:border-brand-blue-dark"
-                            />
-                          </div>
-                          {isComponentPriceOverridden("mb", pcConfig.mbId, pcConfig.mbPrice) && (
-                            <button
-                              type="button"
-                              onClick={() => handleSaveComponentPriceToCatalog(pcConfig.mbId, pcConfig.mbPrice)}
-                              className="p-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 hover:text-emerald-700 rounded-xl border border-emerald-200 transition-all cursor-pointer shadow-sm shrink-0"
-                              title="Update Master Catalog Price"
-                            >
-                              <Save className="h-3.5 w-3.5" />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* RAM Searchable Autocomplete */}
-                  <div className="space-y-1.5">
-                    <SearchableDropdown 
-                      label="RAM Memory" 
-                      placeholder="-- Select RAM --" 
-                      list={ramList} 
-                      selectedValue={pcConfig.ramId} 
-                      onSelect={(id) => handlePcComponentChange("ram", id)}
-                    />
-                    
-                    {pcConfig.ramId !== "" && (
-                      <div className="flex space-x-2 items-center animate-fadeIn mt-2">
-                        {pcConfig.ramId === "custom" && (
-                          <input 
-                            type="text" placeholder="Custom Spec Title" value={pcConfig.ramCustomName}
-                            onChange={(e) => setPcConfig({...pcConfig, ramCustomName: e.target.value})}
-                            className="glass-input px-3 py-2 rounded-xl text-xs flex-1 animate-fadeIn"
-                          />
-                        )}
-                        
-                        <div className="flex items-center space-x-1.5 bg-slate-100 border border-slate-200 rounded-xl px-2.5 py-1.5 shrink-0">
-                          <span className="text-[10px] text-slate-400 uppercase font-bold">Qty</span>
-                          <input 
-                            type="number" value={pcConfig.ramQty}
-                            onChange={(e) => setPcConfig({...pcConfig, ramQty: parseInt(e.target.value) || 1})}
-                            className="bg-transparent text-xs w-8 text-center font-bold text-slate-800 focus:outline-none"
-                          />
-                        </div>
-
-                        <div className="flex items-center space-x-1 shrink-0">
-                          <div className="relative w-32">
-                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 font-bold">INR</span>
-                            <input 
-                              type="number" placeholder="Price" value={pcConfig.ramPrice || ""}
-                              onChange={(e) => setPcConfig({...pcConfig, ramPrice: parseFloat(e.target.value) || 0})}
-                              className="glass-input pl-10 pr-3 py-2 rounded-xl text-xs w-full text-right font-bold focus:border-brand-blue-dark"
-                            />
-                          </div>
-                          {isComponentPriceOverridden("ram", pcConfig.ramId, pcConfig.ramPrice) && (
-                            <button
-                              type="button"
-                              onClick={() => handleSaveComponentPriceToCatalog(pcConfig.ramId, pcConfig.ramPrice)}
-                              className="p-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 hover:text-emerald-700 rounded-xl border border-emerald-200 transition-all cursor-pointer shadow-sm shrink-0"
-                              title="Update Master Catalog Price"
-                            >
-                              <Save className="h-3.5 w-3.5" />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Primary Storage Autocomplete */}
-                  <div className="space-y-1.5">
-                    <SearchableDropdown 
-                      label="Primary Storage (SSD)" 
-                      placeholder="-- Select Storage --" 
-                      list={ssdList} 
-                      selectedValue={pcConfig.ssd1Id} 
-                      onSelect={(id) => handlePcComponentChange("ssd1", id)}
-                    />
-                    
-                    {pcConfig.ssd1Id !== "" && (
-                      <div className="flex space-x-2 animate-fadeIn mt-2">
-                        {pcConfig.ssd1Id === "custom" && (
-                          <input 
-                            type="text" placeholder="Custom Spec Title" value={pcConfig.ssd1CustomName}
-                            onChange={(e) => setPcConfig({...pcConfig, ssd1CustomName: e.target.value})}
-                            className="glass-input px-3 py-2 rounded-xl text-xs flex-1 animate-fadeIn"
-                          />
-                        )}
-                        <div className="flex items-center space-x-1 shrink-0">
-                          <div className="relative w-32">
-                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 font-bold">INR</span>
-                            <input 
-                              type="number" placeholder="Price" value={pcConfig.ssd1Price || ""}
-                              onChange={(e) => setPcConfig({...pcConfig, ssd1Price: parseFloat(e.target.value) || 0})}
-                              className="glass-input pl-10 pr-3 py-2 rounded-xl text-xs w-full text-right font-bold focus:border-brand-blue-dark"
-                            />
-                          </div>
-                          {isComponentPriceOverridden("ssd1", pcConfig.ssd1Id, pcConfig.ssd1Price) && (
-                            <button
-                              type="button"
-                              onClick={() => handleSaveComponentPriceToCatalog(pcConfig.ssd1Id, pcConfig.ssd1Price)}
-                              className="p-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 hover:text-emerald-700 rounded-xl border border-emerald-200 transition-all cursor-pointer shadow-sm shrink-0"
-                              title="Update Master Catalog Price"
-                            >
-                              <Save className="h-3.5 w-3.5" />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Secondary Storage Autocomplete */}
-                  <div className="space-y-1.5">
-                    <SearchableDropdown 
-                      label="Secondary Storage (Optional)" 
-                      placeholder="-- Select Secondary --" 
-                      list={ssdList} 
-                      selectedValue={pcConfig.ssd2Id} 
-                      onSelect={(id) => handlePcComponentChange("ssd2", id)}
-                    />
-                    
-                    {pcConfig.ssd2Id !== "" && (
-                      <div className="flex space-x-2 animate-fadeIn mt-2">
-                        {pcConfig.ssd2Id === "custom" && (
-                          <input 
-                            type="text" placeholder="Custom Spec Title" value={pcConfig.ssd2CustomName}
-                            onChange={(e) => setPcConfig({...pcConfig, ssd2CustomName: e.target.value})}
-                            className="glass-input px-3 py-2 rounded-xl text-xs flex-1 animate-fadeIn"
-                          />
-                        )}
-                        <div className="flex items-center space-x-1 shrink-0">
-                          <div className="relative w-32">
-                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 font-bold">INR</span>
-                            <input 
-                              type="number" placeholder="Price" value={pcConfig.ssd2Price || ""}
-                              onChange={(e) => setPcConfig({...pcConfig, ssd2Price: parseFloat(e.target.value) || 0})}
-                              className="glass-input pl-10 pr-3 py-2 rounded-xl text-xs w-full text-right font-bold focus:border-brand-blue-dark"
-                            />
-                          </div>
-                          {isComponentPriceOverridden("ssd2", pcConfig.ssd2Id, pcConfig.ssd2Price) && (
-                            <button
-                              type="button"
-                              onClick={() => handleSaveComponentPriceToCatalog(pcConfig.ssd2Id, pcConfig.ssd2Price)}
-                              className="p-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 hover:text-emerald-700 rounded-xl border border-emerald-200 transition-all cursor-pointer shadow-sm shrink-0"
-                              title="Update Master Catalog Price"
-                            >
-                              <Save className="h-3.5 w-3.5" />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* PC Cabinet Autocomplete */}
-                  <div className="space-y-1.5">
-                    <SearchableDropdown 
-                      label="PC Cabinet" 
-                      placeholder="-- Select Cabinet --" 
-                      list={cabList} 
-                      selectedValue={pcConfig.cabId} 
-                      onSelect={(id) => handlePcComponentChange("cab", id)}
-                    />
-                    
-                    {pcConfig.cabId !== "" && (
-                      <div className="flex space-x-2 animate-fadeIn mt-2">
-                        {pcConfig.cabId === "custom" && (
-                          <input 
-                            type="text" placeholder="Custom Spec Title" value={pcConfig.cabCustomName}
-                            onChange={(e) => setPcConfig({...pcConfig, cabCustomName: e.target.value})}
-                            className="glass-input px-3 py-2 rounded-xl text-xs flex-1 animate-fadeIn"
-                          />
-                        )}
-                        <div className="flex items-center space-x-1 shrink-0">
-                          <div className="relative w-32">
-                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 font-bold">INR</span>
-                            <input 
-                              type="number" placeholder="Price" value={pcConfig.cabPrice || ""}
-                              onChange={(e) => setPcConfig({...pcConfig, cabPrice: parseFloat(e.target.value) || 0})}
-                              className="glass-input pl-10 pr-3 py-2 rounded-xl text-xs w-full text-right font-bold focus:border-brand-blue-dark"
-                            />
-                          </div>
-                          {isComponentPriceOverridden("cab", pcConfig.cabId, pcConfig.cabPrice) && (
-                            <button
-                              type="button"
-                              onClick={() => handleSaveComponentPriceToCatalog(pcConfig.cabId, pcConfig.cabPrice)}
-                              className="p-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 hover:text-emerald-700 rounded-xl border border-emerald-200 transition-all cursor-pointer shadow-sm shrink-0"
-                              title="Update Master Catalog Price"
-                            >
-                              <Save className="h-3.5 w-3.5" />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* SMPS Autocomplete */}
-                  <div className="space-y-1.5">
-                    <SearchableDropdown 
-                      label="SMPS Power Supply" 
-                      placeholder="-- Select SMPS --" 
-                      list={smpsList} 
-                      selectedValue={pcConfig.smpsId} 
-                      onSelect={(id) => handlePcComponentChange("smps", id)}
-                    />
-                    
-                    {pcConfig.smpsId !== "" && (
-                      <div className="flex space-x-2 animate-fadeIn mt-2">
-                        {pcConfig.smpsId === "custom" && (
-                          <input 
-                            type="text" placeholder="Custom Spec Title" value={pcConfig.smpsCustomName}
-                            onChange={(e) => setPcConfig({...pcConfig, smpsCustomName: e.target.value})}
-                            className="glass-input px-3 py-2 rounded-xl text-xs flex-1 animate-fadeIn"
-                          />
-                        )}
-                        <div className="flex items-center space-x-1 shrink-0">
-                          <div className="relative w-32">
-                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 font-bold">INR</span>
-                            <input 
-                              type="number" placeholder="Price" value={pcConfig.smpsPrice || ""}
-                              onChange={(e) => setPcConfig({...pcConfig, smpsPrice: parseFloat(e.target.value) || 0})}
-                              className="glass-input pl-10 pr-3 py-2 rounded-xl text-xs w-full text-right font-bold focus:border-brand-blue-dark"
-                            />
-                          </div>
-                          {isComponentPriceOverridden("smps", pcConfig.smpsId, pcConfig.smpsPrice) && (
-                            <button
-                              type="button"
-                              onClick={() => handleSaveComponentPriceToCatalog(pcConfig.smpsId, pcConfig.smpsPrice)}
-                              className="p-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 hover:text-emerald-700 rounded-xl border border-emerald-200 transition-all cursor-pointer shadow-sm shrink-0"
-                              title="Update Master Catalog Price"
-                            >
-                              <Save className="h-3.5 w-3.5" />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Liquid Cooler Autocomplete */}
-                  <div className="space-y-1.5">
-                    <SearchableDropdown 
-                      label="Liquid / LQ Cooler" 
-                      placeholder="-- Select Cooler --" 
-                      list={lqList} 
-                      selectedValue={pcConfig.lqId} 
-                      onSelect={(id) => handlePcComponentChange("lq", id)}
-                    />
-                    
-                    {pcConfig.lqId !== "" && (
-                      <div className="flex space-x-2 animate-fadeIn mt-2">
-                        {pcConfig.lqId === "custom" && (
-                          <input 
-                            type="text" placeholder="Custom Spec Title" value={pcConfig.lqCustomName}
-                            onChange={(e) => setPcConfig({...pcConfig, lqCustomName: e.target.value})}
-                            className="glass-input px-3 py-2 rounded-xl text-xs flex-1 animate-fadeIn"
-                          />
-                        )}
-                        <div className="flex items-center space-x-1 shrink-0">
-                          <div className="relative w-32">
-                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 font-bold">INR</span>
-                            <input 
-                              type="number" placeholder="Price" value={pcConfig.lqPrice || ""}
-                              onChange={(e) => setPcConfig({...pcConfig, lqPrice: parseFloat(e.target.value) || 0})}
-                              className="glass-input pl-10 pr-3 py-2 rounded-xl text-xs w-full text-right font-bold focus:border-brand-blue-dark"
-                            />
-                          </div>
-                          {isComponentPriceOverridden("lq", pcConfig.lqId, pcConfig.lqPrice) && (
-                            <button
-                              type="button"
-                              onClick={() => handleSaveComponentPriceToCatalog(pcConfig.lqId, pcConfig.lqPrice)}
-                              className="p-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 hover:text-emerald-700 rounded-xl border border-emerald-200 transition-all cursor-pointer shadow-sm shrink-0"
-                              title="Update Master Catalog Price"
-                            >
-                              <Save className="h-3.5 w-3.5" />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* GPU Autocomplete */}
-                  <div className="md:col-span-2 space-y-1.5">
-                    <SearchableDropdown 
-                      label="Graphics / GPU Unit" 
-                      placeholder="-- Select Graphics --" 
-                      list={gpuList} 
-                      selectedValue={pcConfig.gpuId} 
-                      onSelect={(id) => handlePcComponentChange("gpu", id)}
-                    />
-                    
-                    {pcConfig.gpuId !== "" && (
-                      <div className="flex space-x-2 items-center animate-fadeIn mt-2">
-                        {pcConfig.gpuId === "custom" && (
-                          <input 
-                            type="text" placeholder="Custom Spec Title" value={pcConfig.gpuCustomName}
-                            onChange={(e) => setPcConfig({...pcConfig, gpuCustomName: e.target.value})}
-                            className="glass-input px-3 py-2 rounded-xl text-xs flex-1 animate-fadeIn"
-                          />
-                        )}
-                        
-                        <div className="flex items-center space-x-1.5 bg-slate-100 border border-slate-200 rounded-xl px-2.5 py-1.5 shrink-0">
-                          <span className="text-[10px] text-slate-400 uppercase font-bold">Qty</span>
-                          <input 
-                            type="number" value={pcConfig.gpuQty}
-                            onChange={(e) => setPcConfig({...pcConfig, gpuQty: parseInt(e.target.value) || 1})}
-                            className="bg-transparent text-xs w-8 text-center font-bold text-slate-800 focus:outline-none"
-                          />
-                        </div>
-
-                        <div className="flex items-center space-x-1 shrink-0">
-                          <div className="relative w-32">
-                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 font-bold">INR</span>
-                            <input 
-                              type="number" placeholder="Price" value={pcConfig.gpuPrice || ""}
-                              onChange={(e) => setPcConfig({...pcConfig, gpuPrice: parseFloat(e.target.value) || 0})}
-                              className="glass-input pl-10 pr-3 py-2 rounded-xl text-xs w-full text-right font-bold focus:border-brand-blue-dark"
-                            />
-                          </div>
-                          {isComponentPriceOverridden("gpu", pcConfig.gpuId, pcConfig.gpuPrice) && (
-                            <button
-                              type="button"
-                              onClick={() => handleSaveComponentPriceToCatalog(pcConfig.gpuId, pcConfig.gpuPrice)}
-                              className="p-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 hover:text-emerald-700 rounded-xl border border-emerald-200 transition-all cursor-pointer shadow-sm shrink-0"
-                              title="Update Master Catalog Price"
-                            >
-                              <Save className="h-3.5 w-3.5" />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <button 
-                  type="button"
-                  onClick={handleCompileCustomPc}
-                  className="w-full flex items-center justify-center space-x-2 bg-gradient-to-r from-brand-blue-dark to-brand-blue hover:from-brand-blue hover:to-brand-blue-dark text-white font-bold py-2.5 rounded-xl shadow-md text-xs mt-3 cursor-pointer"
-                >
-                  <Cpu className="h-4 w-4" />
-                  <span>Compile & Package Custom PC Build</span>
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Section 3: Add Items Control Panel (Inventory select vs Custom write-in) */}
-          <div className="glass-card rounded-2xl p-5 space-y-4 bg-white border border-slate-200">
+          {/* Section 3: Add Items Control Panel (Custom write-in only) */}
+          <div className="glass-card rounded-2xl p-5 space-y-4 bg-white border border-slate-200 shadow-sm">
             <h3 className="text-sm font-extrabold text-slate-950 flex items-center space-x-2 border-b border-slate-100 pb-3 uppercase tracking-wider text-[11px]">
               <ShoppingBag className="h-4.5 w-4.5 text-brand-blue-dark" />
               <span>Add Items to Quotation</span>
             </h3>
 
-            {/* Split layout: Catalog search (Left), Custom Write-in (Right) */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              
-              {/* Product catalog picker */}
-              <div className="space-y-3.5 border-r border-slate-150 pr-0 md:pr-6">
-                <div>
-                  <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">Search Store Catalog</h4>
-                  
-                  {/* Search text input */}
-                  <div className="relative">
-                    <input 
-                      type="text" 
-                      placeholder="Type brand or item title..." 
-                      value={standardSearch}
-                      onChange={(e) => setStandardSearch(e.target.value)}
-                      className="glass-input px-3.5 py-2.5 rounded-xl text-xs w-full"
-                    />
-                    
-                    {/* searched popup catalog drop list */}
-                    {searchedProducts.length > 0 && (
-                      <div className="absolute top-full left-0 right-0 z-10 mt-1.5 bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden divide-y divide-slate-100 max-h-48 overflow-y-auto">
-                        {searchedProducts.map(p => (
-                          <div 
-                            key={p.id}
-                            onClick={() => {
-                              setSelectedProductId(p.id);
-                              setStandardSearch(p.name);
-                            }}
-                            className="p-2.5 text-[11px] text-slate-700 hover:text-slate-950 hover:bg-slate-50 cursor-pointer flex justify-between items-center"
-                          >
-                            <span className="truncate pr-2 font-medium">{p.name}</span>
-                            <span className="font-bold text-slate-500 shrink-0">{formatCurrency(p.price)}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <select 
-                    value={selectedProductId}
-                    onChange={(e) => setSelectedProductId(e.target.value)}
-                    className="glass-input px-3.5 py-2.5 rounded-xl text-xs w-full font-bold"
-                  >
-                    <option value="">-- Selected Product --</option>
-                    {products.filter(p => !p.category.includes("Processors") && !p.category.includes("Motherboards")).map(p => (
-                      <option key={p.id} value={p.id}>{p.name} ({formatCurrency(p.price)})</option>
-                    ))}
-                  </select>
-                  
-                  <button 
-                    type="button"
-                    onClick={handleAddStandardProduct}
-                    className="w-full flex items-center justify-center space-x-2 bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200 font-semibold py-2 rounded-xl text-xs cursor-pointer"
-                  >
-                    <Plus className="h-4 w-4 mr-1" /> Add Catalog Product
-                  </button>
-                </div>
-              </div>
-
-              {/* Custom item write-in */}
-              <div className="space-y-3">
-                <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Custom Write-In Line Item</h4>
-                
+            <div className="w-full space-y-3.5 max-w-3xl mx-auto">
+              <div>
+                <label className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-450 mb-1">Item Title / Name *</label>
                 <input 
                   type="text" 
                   placeholder="Item Name (e.g. HP Pavilion Laptop)" 
                   value={customWriteIn.description}
                   onChange={(e) => setCustomWriteIn({...customWriteIn, description: e.target.value})}
-                  className="glass-input px-3.5 py-2.5 rounded-xl text-xs w-full font-bold"
+                  className="glass-input px-4 py-3 rounded-xl text-xs w-full font-bold focus:border-brand-blue-dark transition-all duration-200 shadow-sm"
                 />
+              </div>
 
+              <div>
+                <label className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-450 mb-1">Specifications / Subtext (Optional)</label>
                 <textarea 
                   rows="2"
                   placeholder="Specifications / Subtext (e.g. Core i5, 16GB RAM, 512GB SSD)..." 
                   value={customWriteIn.specs || ""}
                   onChange={(e) => setCustomWriteIn({...customWriteIn, specs: e.target.value})}
-                  className="glass-input px-3.5 py-2 rounded-xl text-xs w-full resize-none font-semibold text-slate-600"
+                  className="glass-input px-4 py-2.5 rounded-xl text-xs w-full resize-none font-semibold text-slate-600 focus:border-brand-blue-dark transition-all duration-200 shadow-sm"
                 />
+              </div>
 
-                <div className="grid grid-cols-3 gap-2">
-                  <input 
-                    type="number" 
-                    placeholder="Full Price (INR)" 
-                    value={customWriteIn.price || ""}
-                    onChange={(e) => setCustomWriteIn({...customWriteIn, price: e.target.value})}
-                    className="glass-input px-2.5 py-2.5 rounded-xl text-xs w-full font-bold"
-                  />
-                  
+              <div className="grid grid-cols-3 gap-3.5">
+                <div className="relative">
+                  <label className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-450 mb-1">Full Price (INR) *</label>
+                  <div className="relative mt-0.5">
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 font-bold uppercase tracking-wider">INR</span>
+                    <input 
+                      type="number" 
+                      placeholder="Price" 
+                      value={customWriteIn.price || ""}
+                      onChange={(e) => setCustomWriteIn({...customWriteIn, price: e.target.value})}
+                      className="glass-input pl-11 pr-3.5 py-3 rounded-xl text-xs w-full font-bold focus:border-brand-blue-dark transition-all duration-200 shadow-sm"
+                    />
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-450 mb-1">GST Rate</label>
                   <select 
                     value={customWriteIn.gst}
                     onChange={(e) => setCustomWriteIn({...customWriteIn, gst: e.target.value})}
-                    className="glass-input px-1.5 py-2.5 rounded-xl text-xs w-full font-bold"
+                    className="glass-input px-3.5 py-3 rounded-xl text-xs w-full font-bold focus:border-brand-blue-dark transition-all duration-200 shadow-sm mt-0.5"
                   >
                     <option value="18">18% GST</option>
                     <option value="12">12% GST</option>
@@ -1461,24 +697,30 @@ export default function QuoteBuilder({
                     <option value="28">28% GST</option>
                     <option value="0">0% GST</option>
                   </select>
-
-                  <input 
-                    type="number" 
-                    placeholder="Qty" 
-                    value={customWriteIn.qty}
-                    onChange={(e) => setCustomWriteIn({...customWriteIn, qty: parseInt(e.target.value) || 1})}
-                    className="glass-input px-1.5 py-2.5 rounded-xl text-xs w-full text-center font-bold"
-                  />
                 </div>
 
-                <button 
-                  type="button"
-                  onClick={handleAddWriteIn}
-                  className="w-full flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200 font-semibold py-2 rounded-xl text-xs cursor-pointer animate-fadeIn"
-                >
-                  <Plus className="h-4 w-4 mr-1" /> Add Write-In Item
-                </button>
+                <div>
+                  <label className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-450 mb-1">Quantity</label>
+                  <div className="relative flex items-center justify-center bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-1 hover:border-slate-350 transition-colors shadow-sm mt-0.5 h-[41px] bg-white">
+                    <span className="text-[10px] text-slate-400 uppercase font-bold shrink-0 mr-2 select-none">Qty</span>
+                    <input 
+                      type="number" 
+                      placeholder="Qty" 
+                      value={customWriteIn.qty}
+                      onChange={(e) => setCustomWriteIn({...customWriteIn, qty: parseInt(e.target.value) || 1})}
+                      className="bg-transparent text-xs w-full font-bold text-slate-800 focus:outline-none text-center"
+                    />
+                  </div>
+                </div>
               </div>
+
+              <button 
+                type="button"
+                onClick={handleAddWriteIn}
+                className="w-full flex items-center justify-center bg-gradient-to-r from-brand-blue-dark to-brand-blue hover:from-brand-blue hover:to-brand-blue-dark text-white font-extrabold py-3.5 rounded-xl shadow-md text-xs cursor-pointer transition-all duration-200 transform active:scale-[0.99] mt-3 animate-fadeIn"
+              >
+                <Plus className="h-4.5 w-4.5 mr-1.5" /> Add Write-In Item to Quotation
+              </button>
             </div>
           </div>
 
@@ -1492,7 +734,7 @@ export default function QuoteBuilder({
             {addedItems.length === 0 ? (
               <div className="text-center py-12 text-slate-400 font-bold text-xs leading-relaxed bg-slate-50/50 border border-slate-100 rounded-2xl">
                 No items have been added to this quotation yet.<br />
-                Use the search catalog picker, write-in form, or build a custom PC to add items!
+                Fill in the details above and click "Add Write-In Item" to begin building this quotation!
               </div>
             ) : (
               <div className="overflow-x-auto">

@@ -4,7 +4,6 @@ import {
   FilePlus2, 
   History, 
   Users, 
-  ShoppingBag, 
   Settings as SettingsIcon,
   LogOut
 } from "lucide-react";
@@ -15,7 +14,6 @@ export default function Sidebar({ activeTab, setActiveTab, onLogout, user }) {
     { id: "builder", name: "Create Quotation", icon: FilePlus2 },
     { id: "history", name: "Quotations History", icon: History },
     { id: "customers", name: "Customers", icon: Users },
-    { id: "products", name: "Products List", icon: ShoppingBag },
     { id: "settings", name: "Settings", icon: SettingsIcon },
   ];
 

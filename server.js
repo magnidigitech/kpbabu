@@ -225,57 +225,51 @@ async function runMigrations(client) {
 
   console.log("Checking if seed data is needed...");
 
-  // Seed Settings
-  const settingsRes = await client.query('SELECT COUNT(*) FROM settings');
-  if (parseInt(settingsRes.rows[0].count, 10) === 0) {
-    console.log("Seeding default settings...");
+  // Seed Settings (Unconditional ON CONFLICT DO NOTHING)
+  console.log("Seeding default settings if needed...");
+  await client.query(`
+    INSERT INTO settings (
+      "id", "storeName", "tagline", "established", "address", "phone", "email", 
+      "gstin", "bankAccountNo", "bankIfsc", "bankName", "terms", "whatsappTemplate"
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+    ON CONFLICT (id) DO NOTHING
+  `, [
+    'default',
+    DEFAULT_SETTINGS.storeName,
+    DEFAULT_SETTINGS.tagline,
+    DEFAULT_SETTINGS.established,
+    DEFAULT_SETTINGS.address,
+    DEFAULT_SETTINGS.phone,
+    DEFAULT_SETTINGS.email,
+    DEFAULT_SETTINGS.gstin,
+    DEFAULT_SETTINGS.bankAccountNo,
+    DEFAULT_SETTINGS.bankIfsc,
+    DEFAULT_SETTINGS.bankName,
+    JSON.stringify(DEFAULT_SETTINGS.terms),
+    DEFAULT_SETTINGS.whatsappTemplate
+  ]);
+
+  // Seed Products (Unconditional ON CONFLICT DO NOTHING)
+  console.log("Seeding initial products if needed...");
+  for (const p of INITIAL_PRODUCTS) {
     await client.query(`
-      INSERT INTO settings (
-        "id", "storeName", "tagline", "established", "address", "phone", "email", 
-        "gstin", "bankAccountNo", "bankIfsc", "bankName", "terms", "whatsappTemplate"
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-    `, [
-      'default',
-      DEFAULT_SETTINGS.storeName,
-      DEFAULT_SETTINGS.tagline,
-      DEFAULT_SETTINGS.established,
-      DEFAULT_SETTINGS.address,
-      DEFAULT_SETTINGS.phone,
-      DEFAULT_SETTINGS.email,
-      DEFAULT_SETTINGS.gstin,
-      DEFAULT_SETTINGS.bankAccountNo,
-      DEFAULT_SETTINGS.bankIfsc,
-      DEFAULT_SETTINGS.bankName,
-      JSON.stringify(DEFAULT_SETTINGS.terms),
-      DEFAULT_SETTINGS.whatsappTemplate
-    ]);
+      INSERT INTO products ("id", "name", "sku", "brand", "category", "price", "gst", "stock", "warranty")
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      ON CONFLICT (id) DO NOTHING
+    `, [p.id, p.name, p.sku, p.brand, p.category, p.price, p.gst, p.stock, p.warranty]);
   }
 
-  // Seed Products
-  const productsRes = await client.query('SELECT COUNT(*) FROM products');
-  if (parseInt(productsRes.rows[0].count, 10) === 0) {
-    console.log("Seeding initial products...");
-    for (const p of INITIAL_PRODUCTS) {
-      await client.query(`
-        INSERT INTO products ("id", "name", "sku", "brand", "category", "price", "gst", "stock", "warranty")
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-      `, [p.id, p.name, p.sku, p.brand, p.category, p.price, p.gst, p.stock, p.warranty]);
-    }
+  // Seed Customers (Unconditional ON CONFLICT DO NOTHING - guarantees c1/c2 exist for quotations)
+  console.log("Seeding initial customers if needed...");
+  for (const c of INITIAL_CUSTOMERS) {
+    await client.query(`
+      INSERT INTO customers ("id", "name", "phone", "email", "address", "gst")
+      VALUES ($1, $2, $3, $4, $5, $6)
+      ON CONFLICT (id) DO NOTHING
+    `, [c.id, c.name, c.phone, c.email, c.address, c.gst]);
   }
 
-  // Seed Customers
-  const customersRes = await client.query('SELECT COUNT(*) FROM customers');
-  if (parseInt(customersRes.rows[0].count, 10) === 0) {
-    console.log("Seeding initial customers...");
-    for (const c of INITIAL_CUSTOMERS) {
-      await client.query(`
-        INSERT INTO customers ("id", "name", "phone", "email", "address", "gst")
-        VALUES ($1, $2, $3, $4, $5, $6)
-      `, [c.id, c.name, c.phone, c.email, c.address, c.gst]);
-    }
-  }
-
-  // Seed Quotations
+  // Seed Quotations (Only if quotations table is empty)
   const quotationsRes = await client.query('SELECT COUNT(*) FROM quotations');
   if (parseInt(quotationsRes.rows[0].count, 10) === 0) {
     console.log("Seeding initial quotations...");
@@ -285,6 +279,7 @@ async function runMigrations(client) {
           "id", "quotationNumber", "date", "expiryDate", "customerId", "customerName", 
           "status", "items", "subtotal", "gstTotal", "discount", "grandTotal", "terms", "bankDetails", "shareHash"
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+        ON CONFLICT (id) DO NOTHING
       `, [
         q.id, q.quotationNumber, q.date, q.expiryDate, q.customerId, q.customerName,
         q.status, JSON.stringify(q.items), q.subtotal, q.gstTotal, q.discount, q.grandTotal,

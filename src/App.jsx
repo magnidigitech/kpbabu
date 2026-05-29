@@ -9,7 +9,6 @@ import {
 import Sidebar from "./components/Sidebar";
 import TabNav from "./components/TabNav";
 import Dashboard from "./components/Dashboard";
-import ProductList from "./components/ProductList";
 import CustomerList from "./components/CustomerList";
 import Settings from "./components/Settings";
 import QuoteBuilder from "./components/QuoteBuilder";
@@ -419,12 +418,10 @@ export default function App() {
       case "builder":
         return (
           <QuoteBuilder 
-            products={products}
             customers={customers}
             settings={settings}
             quotations={quotations}
             onSaveQuotation={handleSaveQuotation}
-            onUpdateProduct={handleUpdateProduct}
             setActiveTab={setActiveTab}
             editingQuotationDraft={editingQuotationDraft}
             clearEditingDraft={() => setEditingQuotationDraft(null)}
@@ -453,15 +450,7 @@ export default function App() {
             onSelectQuotation={setSelectedQuotation}
           />
         );
-      case "products":
-        return (
-          <ProductList 
-            products={products}
-            onAddProduct={handleAddProduct}
-            onUpdateProduct={handleUpdateProduct}
-            onDeleteProduct={handleDeleteProduct}
-          />
-        );
+
       case "settings":
         return (
           <Settings 

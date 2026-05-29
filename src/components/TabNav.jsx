@@ -4,7 +4,6 @@ import {
   FilePlus2, 
   History, 
   Users, 
-  ShoppingBag,
   Settings
 } from "lucide-react";
 
@@ -14,7 +13,6 @@ export default function TabNav({ activeTab, setActiveTab }) {
     { id: "builder", name: "Build", icon: FilePlus2 },
     { id: "history", name: "History", icon: History },
     { id: "customers", name: "Clients", icon: Users },
-    { id: "products", name: "Items", icon: ShoppingBag },
     { id: "settings", name: "Config", icon: Settings },
   ];
 
