@@ -48,65 +48,46 @@ export default function App() {
 
   // Initialize DB and load states on mount
   useEffect(() => {
-    initializeDatabase();
-    
-    const loadedSettings = getLocalStorageData("kpb_settings", null);
-    const loadedProducts = getLocalStorageData("kpb_products", []);
-    const loadedCustomers = getLocalStorageData("kpb_customers", []);
-    const loadedQuotations = getLocalStorageData("kpb_quotations", []);
-    const sessionUser = getLocalStorageData("kpb_session_user", null);
+    async function loadData() {
+      try {
+        const [settingsRes, productsRes, customersRes, quotationsRes] = await Promise.all([
+          fetch('/api/settings').then(res => res.json()),
+          fetch('/api/products').then(res => res.json()),
+          fetch('/api/customers').then(res => res.json()),
+          fetch('/api/quotations').then(res => res.json())
+        ]);
 
-    if (loadedSettings) setSettings(loadedSettings);
-    setProducts(loadedProducts);
-    setCustomers(loadedCustomers);
-    setQuotations(loadedQuotations);
-    
-    if (sessionUser) {
-      setUser(sessionUser);
-      setIsLoggedIn(true);
-    }
-    
-    setIsInitialized(true);
+        if (settingsRes && !settingsRes.error) setSettings(settingsRes);
+        if (Array.isArray(productsRes)) setProducts(productsRes);
+        if (Array.isArray(customersRes)) setCustomers(customersRes);
+        if (Array.isArray(quotationsRes)) setQuotations(quotationsRes);
 
-    // ── Deep link routing: /quotation/{ref}#{snapshot-or-hash} ─────────────────────
-    // This renders a PUBLIC view — no login required.
-    // New format: hash is base64-encoded JSON snapshot (self-contained, any device).
-    // Old format: short hash needing localStorage lookup (fallback, same device).
-    const path = window.location.pathname;
-    const match = path.match(/^\/quotation\/([^/]+)/);
-    if (match) {
-      const ref = decodeURIComponent(match[1]);
-      const hashInUrl = window.location.hash.replace("#", "");
-      const decoded = decodeShareLink(
-        hashInUrl, ref, loadedQuotations, loadedSettings, loadedCustomers
-      );
-      if (decoded) {
-        setPublicViewData(decoded);
+        const sessionUser = getLocalStorageData("kpb_session_user", null);
+        if (sessionUser) {
+          setUser(sessionUser);
+          setIsLoggedIn(true);
+        }
+
+        // ── Deep link routing: /quotation/{ref}#{snapshot-or-hash} ─────────────────────
+        const path = window.location.pathname;
+        const match = path.match(/^\/quotation\/([^/]+)/);
+        if (match) {
+          const shareHash = decodeURIComponent(match[1]);
+          const publicRes = await fetch(`/api/public-quotation/${shareHash}`).then(res => res.json());
+          if (publicRes && !publicRes.error) {
+            setPublicViewData(publicRes);
+          }
+        }
+
+        setIsInitialized(true);
+      } catch (error) {
+        console.error("Error loading fullstack database:", error);
+        setIsInitialized(true);
       }
-      // If null — invalid/expired link, fall through to normal login flow
     }
+
+    loadData();
   }, []);
-
-  // Sync state to local storage when database state changes
-  const saveProducts = (newProds) => {
-    setProducts(newProds);
-    setLocalStorageData("kpb_products", newProds);
-  };
-
-  const saveCustomers = (newCusts) => {
-    setCustomers(newCusts);
-    setLocalStorageData("kpb_customers", newCusts);
-  };
-
-  const saveQuotations = (newQuotes) => {
-    setQuotations(newQuotes);
-    setLocalStorageData("kpb_quotations", newQuotes);
-  };
-
-  const saveSettings = (newSettings) => {
-    setSettings(newSettings);
-    setLocalStorageData("kpb_settings", newSettings);
-  };
 
   // Login handler
   const handleLogin = (e) => {
@@ -118,7 +99,6 @@ export default function App() {
       return;
     }
 
-    // Standard Mock validation: admin/admin, staff/staff, or any credentials for easy local access
     const successfulUser = {
       name: username.charAt(0).toUpperCase() + username.slice(1),
       role: role
@@ -137,88 +117,176 @@ export default function App() {
     window.localStorage.removeItem("kpb_session_user");
   };
 
-  // PRODUCT MUTATORS (CRUD)
-  const handleAddProduct = (newProd) => {
-    if (Array.isArray(newProd)) {
-      const payloads = newProd.map((prod, idx) => ({
-        id: `prod-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 9)}`,
-        ...prod
-      }));
-      saveProducts([...products, ...payloads]);
-    } else {
-      const payload = {
-        id: `prod-${Date.now()}`,
-        ...newProd
-      };
-      saveProducts([...products, payload]);
+  const saveSettings = async (newSettings) => {
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newSettings)
+      });
+      const data = await res.json();
+      setSettings(data);
+    } catch (error) {
+      console.error("Error saving settings:", error);
+      alert("Failed to save settings.");
     }
   };
 
-  const handleUpdateProduct = (id, updatedFields) => {
-    saveProducts(products.map(p => p.id === id ? { ...p, ...updatedFields } : p));
+  // PRODUCT MUTATORS (CRUD)
+  const handleAddProduct = async (newProd) => {
+    try {
+      if (Array.isArray(newProd)) {
+        const payloads = newProd.map((prod, idx) => ({
+          id: `prod-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 9)}`,
+          ...prod
+        }));
+        const res = await fetch('/api/products', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payloads)
+        });
+        const data = await res.json();
+        setProducts([...products, ...data]);
+      } else {
+        const payload = {
+          id: `prod-${Date.now()}`,
+          ...newProd
+        };
+        const res = await fetch('/api/products', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        setProducts([...products, data]);
+      }
+    } catch (error) {
+      console.error("Error adding product:", error);
+      alert("Failed to add product.");
+    }
   };
 
-  const handleDeleteProduct = (id) => {
+  const handleUpdateProduct = async (id, updatedFields) => {
+    try {
+      const currentProd = products.find(p => p.id === id);
+      const payload = { ...currentProd, ...updatedFields };
+      const res = await fetch(`/api/products/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      setProducts(products.map(p => p.id === id ? data : p));
+    } catch (error) {
+      console.error("Error updating product:", error);
+      alert("Failed to update product.");
+    }
+  };
+
+  const handleDeleteProduct = async (id) => {
     if (window.confirm("Are you sure you want to delete this product?")) {
-      saveProducts(products.filter(p => p.id !== id));
+      try {
+        await fetch(`/api/products/${id}`, { method: 'DELETE' });
+        setProducts(products.filter(p => p.id !== id));
+      } catch (error) {
+        console.error("Error deleting product:", error);
+        alert("Failed to delete product.");
+      }
     }
   };
 
   // CUSTOMER MUTATORS (CRUD)
-  const handleAddCustomer = (newCust) => {
-    const payload = {
-      id: `cust-${Date.now()}`,
-      ...newCust
-    };
-    saveCustomers([...customers, payload]);
-    return payload; // return for inline selectors
+  const handleAddCustomer = async (newCust) => {
+    try {
+      const payload = {
+        id: `cust-${Date.now()}`,
+        ...newCust
+      };
+      const res = await fetch('/api/customers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      setCustomers([...customers, data]);
+      return data;
+    } catch (error) {
+      console.error("Error adding customer:", error);
+      alert("Failed to add customer.");
+    }
   };
 
-  const handleUpdateCustomer = (id, updatedFields) => {
-    saveCustomers(customers.map(c => c.id === id ? { ...c, ...updatedFields } : c));
+  const handleUpdateCustomer = async (id, updatedFields) => {
+    try {
+      const currentCust = customers.find(c => c.id === id);
+      const payload = { ...currentCust, ...updatedFields };
+      const res = await fetch(`/api/customers/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      setCustomers(customers.map(c => c.id === id ? data : c));
+    } catch (error) {
+      console.error("Error updating customer:", error);
+      alert("Failed to update customer.");
+    }
   };
 
-  const handleDeleteCustomer = (id) => {
+  const handleDeleteCustomer = async (id) => {
     if (window.confirm("Are you sure you want to delete this customer record?")) {
-      saveCustomers(customers.filter(c => c.id !== id));
+      try {
+        await fetch(`/api/customers/${id}`, { method: 'DELETE' });
+        setCustomers(customers.filter(c => c.id !== id));
+      } catch (error) {
+        console.error("Error deleting customer:", error);
+        alert("Failed to delete customer.");
+      }
     }
   };
 
   // QUOTATION MUTATORS (Create, Edit, Duplicate, Delete)
-  const handleSaveQuotation = (type, payload) => {
+  const handleSaveQuotation = async (type, payload) => {
     if (type === "customer_inline") {
-      return handleAddCustomer(payload);
+      return await handleAddCustomer(payload);
     }
 
-    // Attach secure share hash if not already present
-    const payloadWithHash = payload.shareHash
-      ? payload
-      : { ...payload, shareHash: generateShareHash(payload.id) };
+    try {
+      const payloadWithHash = payload.shareHash
+        ? payload
+        : { ...payload, shareHash: generateShareHash(payload.id) };
 
-    const exists = quotations.some(q => q.id === payloadWithHash.id);
-    let updated;
-    if (exists) {
-      updated = quotations.map(q => q.id === payloadWithHash.id ? payloadWithHash : q);
-    } else {
-      updated = [payloadWithHash, ...quotations];
-    }
-    saveQuotations(updated);
-    
-    if (payloadWithHash.status === "Approved" && !exists) {
-      const updatedProducts = products.map(prod => {
-        const matchingItem = payloadWithHash.items.find(item => item.productId === prod.id);
-        if (matchingItem) {
-          return { ...prod, stock: Math.max(0, prod.stock - matchingItem.qty) };
-        }
-        return prod;
+      const exists = quotations.some(q => q.id === payloadWithHash.id);
+      const oldStatus = exists ? quotations.find(q => q.id === payloadWithHash.id).status : null;
+
+      const res = await fetch('/api/quotations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payloadWithHash)
       });
-      saveProducts(updatedProducts);
+      const savedData = await res.json();
+
+      let updated;
+      if (exists) {
+        updated = quotations.map(q => q.id === savedData.id ? savedData : q);
+      } else {
+        updated = [savedData, ...quotations];
+      }
+      setQuotations(updated);
+      
+      // Stock sync: if transitioning to Approved, sync products stock
+      if (savedData.status === "Approved" && oldStatus !== "Approved") {
+        const updatedProducts = await fetch('/api/products').then(res => res.json());
+        if (Array.isArray(updatedProducts)) setProducts(updatedProducts);
+      }
+    } catch (error) {
+      console.error("Error saving quotation:", error);
+      alert("Failed to save quotation record.");
     }
   };
 
   const handleDuplicateQuotation = (q) => {
     const today = new Date().toISOString().split("T")[0];
-    const loadedQuotations = JSON.parse(window.localStorage.getItem("kpb_quotations")) || [];
     
     const d = new Date(today);
     const DD = String(d.getDate()).padStart(2, "0");
@@ -226,7 +294,7 @@ export default function App() {
     const YY = String(d.getFullYear()).slice(-2);
     const datePrefix = `KPB-${DD}${MM}${YY}-`;
     
-    const matchingQuotes = loadedQuotations.filter(x => x.quotationNumber && x.quotationNumber.startsWith(datePrefix));
+    const matchingQuotes = quotations.filter(x => x.quotationNumber && x.quotationNumber.startsWith(datePrefix));
     let nextSeq = 1;
     
     if (matchingQuotes.length > 0) {
@@ -253,9 +321,15 @@ export default function App() {
     setActiveTab("builder");
   };
 
-  const handleDeleteQuotation = (id) => {
+  const handleDeleteQuotation = async (id) => {
     if (window.confirm("Are you sure you want to delete this quotation entry?")) {
-      saveQuotations(quotations.filter(q => q.id !== id));
+      try {
+        await fetch(`/api/quotations/${id}`, { method: 'DELETE' });
+        setQuotations(quotations.filter(q => q.id !== id));
+      } catch (error) {
+        console.error("Error deleting quotation:", error);
+        alert("Failed to delete quotation record.");
+      }
     }
   };
 
@@ -323,11 +397,9 @@ export default function App() {
             settings={settings}
             onUpdateSettings={saveSettings}
             onResetDatabase={() => {
-              window.localStorage.removeItem("kpb_initialized");
-              window.localStorage.removeItem("kpb_settings");
-              window.localStorage.removeItem("kpb_products");
-              window.localStorage.removeItem("kpb_customers");
-              window.localStorage.removeItem("kpb_quotations");
+              alert("Your database is securely hosted on your Hostinger VPS PostgreSQL database. The local browser cache has been reset.");
+              window.localStorage.removeItem("kpb_session_user");
+              window.location.reload();
             }}
           />
         );

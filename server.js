@@ -1,0 +1,650 @@
+import express from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import pg from 'pg';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+// Load Environment variables
+dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const app = express();
+const PORT = process.env.PORT || 5000;
+
+// Enable CORS
+app.use(cors());
+// Parse incoming requests as JSON
+app.use(express.json({ limit: '10mb' }));
+
+// Database connection
+const { Pool } = pg;
+const isProduction = process.env.NODE_ENV === 'production';
+
+// In Coolify/production we connect using DATABASE_URL. In development, we use DATABASE_URL or fallback to local postgres setup
+const connectionString = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/kpbabu';
+
+const pool = new Pool({
+  connectionString,
+  ssl: isProduction ? { rejectUnauthorized: false } : false
+});
+
+// Seed Data for Auto-Migration
+const DEFAULT_SETTINGS = {
+  storeName: "SRI KP BABU COMPUTER STATIONERYMART",
+  tagline: "HP ASUS ACER AUTHORISED SHOW ROOM",
+  established: "SINCE 1995",
+  address: "H.O: Near Sai Baba Temple, 3/7 Brodipet, Opp. AXIS BANK, Guntur - 522 002.",
+  phone: "+91 9597553232, 9951644777",
+  email: "srikpbabucomputersm@gmail.com",
+  gstin: "37ACHPB2370B1Z7",
+  bankAccountNo: "924030067132830",
+  bankIfsc: "UTIB0000070",
+  bankName: "AXIS BANK, GUNTUR",
+  terms: [
+    "The above quoted price is Inclusive of GST 18%.",
+    "100% Advance Payment on the date of Delivery.",
+    "PRICE VALID FOR 4 DAYS ONLY"
+  ],
+  whatsappTemplate: `Hi {clientName},\n\nPlease find attached the quotation (Ref: {quotationNumber}) for the requested items/services.\n\n👉 View Quotation: {viewLink}\n\nHere is a quick summary of the details:\n\n💰 Total Amount: ₹{grandTotal}/- (Inclusive of 18% GST)\n\n📋 Payment Terms: 100% advance payment on the date of delivery.\n\n📅 Validity: Pricing is valid for 7 days.\n\nOur bank account details for the transfer are conveniently located at the bottom left of the attached document.\n\nPlease review the breakdown, and let me know if you would like to proceed with the order or if you have any questions!\n\nBest regards,\nKP Babu Computers\n\n📸 Instagram: https://www.instagram.com/sri_kp_babu_computers/\n🏪 Our Store: https://share.google/xlLdYEzLI2HYEzM9n`
+};
+
+const INITIAL_PRODUCTS = [
+  { id: "p1", name: "AMD THREADRIPPER 9995WX Processor", sku: "CPU-TR-9995WX", brand: "AMD", category: "Processors", price: 1800000, gst: 18, stock: 3, warranty: "3 Years" },
+  { id: "p2", name: "ASROCK WRX90 MotherBoard", sku: "MB-ASR-WRX90", brand: "ASRock", category: "Motherboards", price: 120000, gst: 18, stock: 5, warranty: "3 Years" },
+  { id: "p3", name: "ADATA 64GB DDR5 REG ECC 5600 MHZ RAM", sku: "RAM-AD-64G-D5", brand: "ADATA", category: "RAM", price: 35000, gst: 18, stock: 24, warranty: "5 Years" },
+  { id: "p4", name: "ACER PREDATOR SSD 2TB GM9 GEN5 NVME Storage", sku: "SSD-AC-PRED-2T", brand: "Acer", category: "Storage", price: 28000, gst: 18, stock: 12, warranty: "5 Years" },
+  { id: "p5", name: "Adata 1TB SSD NvMe Storage", sku: "SSD-AD-1T", brand: "ADATA", category: "Storage", price: 8500, gst: 18, stock: 20, warranty: "3 Years" },
+  { id: "p6", name: "THERMALTAKE VIEW51 Cabinet", sku: "CAB-TT-V51", brand: "Thermaltake", category: "Cabinets", price: 22000, gst: 18, stock: 8, warranty: "1 Year" },
+  { id: "p7", name: "Toughpower GF3 1350W 80Plus Gold SMPS", sku: "PSU-TT-GF3-1350", brand: "Thermaltake", category: "SMPS", price: 25000, gst: 18, stock: 7, warranty: "10 Years" },
+  { id: "p8", name: "THERMALTAKE TOUGH LIQUID 360 ARGB TRX 40 LQ Cooler", sku: "LQ-TT-TL360", brand: "Thermaltake", category: "Coolers", price: 18000, gst: 18, stock: 4, warranty: "2 Years" },
+  { id: "p9", name: "Zotac 32GB RTX5090 Extreme Infinity Graphics Card", sku: "GPU-ZT-5090-32G", brand: "Zotac", category: "Graphics Cards", price: 350000, gst: 18, stock: 6, warranty: "3+2 Years" },
+  { id: "p10", name: "ASUS ROG Zephyrus G16 Laptop", sku: "LAP-AS-G16", brand: "ASUS", category: "Laptops", price: 185000, gst: 18, stock: 10, warranty: "2 Years" },
+  { id: "p11", name: "HP Pavilion 24 All-in-One Desktop", sku: "DK-HP-PAV24", brand: "HP", category: "Desktops", price: 78000, gst: 18, stock: 8, warranty: "1 Year" },
+  { id: "p12", name: "LG 34-Inch UltraWide IPS Monitor", sku: "MON-LG-34UW", brand: "LG", category: "Monitors", price: 38000, gst: 18, stock: 15, warranty: "3 Years" },
+  { id: "p13", name: "Logitech MX Master 3S Wireless Mouse", sku: "PER-LOG-MX3S", brand: "Logitech", category: "Accessories", price: 9500, gst: 18, stock: 35, warranty: "1 Year" },
+  { id: "p14", name: "HP LaserJet Pro MFP M428fdw Printer", sku: "PR-HP-M428", brand: "HP", category: "Printers", price: 42000, gst: 18, stock: 12, warranty: "1 Year" },
+  { id: "p15", name: "A4 Paper Bundle (75 GSM, 500 Sheets)", sku: "ST-A4-75G", brand: "Century", category: "Accessories", price: 320, gst: 18, stock: 150, warranty: "None" }
+];
+
+const INITIAL_CUSTOMERS = [
+  { id: "c1", name: "Kranthi Kumar Garu", phone: "+91 9848523456", email: "kranthi.kumar@gmail.com", address: "Plot 42, Brodipet 4th Line, Guntur", gst: "37AAAAA1111A1Z1" },
+  { id: "c2", name: "Dr. K. Srinivasa Rao", phone: "+91 9908612345", email: "srini.rao@yahoo.com", address: "Vidyaranya Residency, Lakshmipuram, Guntur", gst: "" },
+  { id: "c3", name: "Sai Krishna Technologies", phone: "+91 8632233445", email: "info@saikrishnatech.com", address: "D.No 5-82-1, Kanna Vari Thota, Guntur", gst: "37BCDEF2222B2Z2" }
+];
+
+const INITIAL_QUOTATIONS = [
+  {
+    id: "q-1001",
+    quotationNumber: "KPB-2026-001",
+    date: "2026-05-01",
+    expiryDate: "2026-05-08",
+    customerId: "c1",
+    customerName: "Kranthi Kumar Garu",
+    status: "Approved",
+    items: [
+      {
+        id: "qi1",
+        description: `Custom Build PC:\nProcessor: AMD THREADRIPPER 9995WX\nMotherBoard: ASROCK WRX90\nRAM: 2 x ADATA 64GB DDR5 REG ECC 5600 MHZ\nStorage: ACER PREDATOR SSD 2TB GM9 GEN5 NVME\nSecondary Storage: Adata 1TB SSD NvMe\nCabinet: THERMALTAKE VIEW51\nSMPS: Toughpower GF3 1350W 80Plus Gold\nLQ: THERMALTAKE TOUGH LIQUID 360 ARGB TRX 40\nGraphics: 2 x Zotac 32GB RTX5090 Extreme Infinity`,
+        qty: 1,
+        unitPrice: 2881356,
+        gstRate: 18,
+        totalPrice: 3400000
+      }
+    ],
+    subtotal: 2881356,
+    gstTotal: 518644,
+    discount: 0,
+    grandTotal: 3400000,
+    terms: DEFAULT_SETTINGS.terms,
+    bankDetails: {
+      accountNo: DEFAULT_SETTINGS.bankAccountNo,
+      ifsc: DEFAULT_SETTINGS.bankIfsc,
+      bankName: DEFAULT_SETTINGS.bankName
+    },
+    shareHash: "initial-hash-1"
+  },
+  {
+    id: "q-1002",
+    quotationNumber: "KPB-2026-002",
+    date: "2026-05-15",
+    expiryDate: "2026-05-22",
+    customerId: "c2",
+    customerName: "Dr. K. Srinivasa Rao",
+    status: "Pending",
+    items: [
+      {
+        id: "qi2",
+        description: "ASUS ROG Zephyrus G16 Laptop",
+        qty: 1,
+        unitPrice: 156780,
+        gstRate: 18,
+        totalPrice: 185000
+      },
+      {
+        id: "qi3",
+        description: "Logitech MX Master 3S Wireless Mouse",
+        qty: 1,
+        unitPrice: 8051,
+        gstRate: 18,
+        totalPrice: 9500
+      }
+    ],
+    subtotal: 164831,
+    gstTotal: 29669,
+    discount: 0,
+    grandTotal: 194500,
+    terms: DEFAULT_SETTINGS.terms,
+    bankDetails: {
+      accountNo: DEFAULT_SETTINGS.bankAccountNo,
+      ifsc: DEFAULT_SETTINGS.bankIfsc,
+      bankName: DEFAULT_SETTINGS.bankName
+    },
+    shareHash: "initial-hash-2"
+  }
+];
+
+// Self-healing database migration and seeding
+async function initializeDatabase() {
+  const client = await pool.connect();
+  try {
+    console.log("Running self-healing database migrations...");
+    
+    // 1. Settings Table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS settings (
+        "id" VARCHAR(50) PRIMARY KEY,
+        "storeName" VARCHAR(255) NOT NULL,
+        "tagline" VARCHAR(255),
+        "established" VARCHAR(50),
+        "address" TEXT,
+        "phone" VARCHAR(100),
+        "email" VARCHAR(255),
+        "gstin" VARCHAR(50),
+        "bankAccountNo" VARCHAR(100),
+        "bankIfsc" VARCHAR(50),
+        "bankName" VARCHAR(100),
+        "terms" JSONB,
+        "whatsappTemplate" TEXT
+      )
+    `);
+
+    // 2. Products Table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS products (
+        "id" VARCHAR(50) PRIMARY KEY,
+        "name" VARCHAR(255) NOT NULL,
+        "sku" VARCHAR(100),
+        "brand" VARCHAR(100),
+        "category" VARCHAR(100),
+        "price" NUMERIC(12, 2) DEFAULT 0.00,
+        "gst" INTEGER DEFAULT 18,
+        "stock" INTEGER DEFAULT 0,
+        "warranty" VARCHAR(100)
+      )
+    `);
+
+    // 3. Customers Table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS customers (
+        "id" VARCHAR(50) PRIMARY KEY,
+        "name" VARCHAR(255) NOT NULL,
+        "phone" VARCHAR(50),
+        "email" VARCHAR(255),
+        "address" TEXT,
+        "gst" VARCHAR(50)
+      )
+    `);
+
+    // 4. Quotations Table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS quotations (
+        "id" VARCHAR(50) PRIMARY KEY,
+        "quotationNumber" VARCHAR(100) UNIQUE NOT NULL,
+        "date" VARCHAR(50) NOT NULL,
+        "expiryDate" VARCHAR(50),
+        "customerId" VARCHAR(50) REFERENCES customers(id) ON DELETE SET NULL,
+        "customerName" VARCHAR(255),
+        "status" VARCHAR(50) DEFAULT 'Pending',
+        "items" JSONB NOT NULL,
+        "subtotal" NUMERIC(12, 2) NOT NULL,
+        "gstTotal" NUMERIC(12, 2) NOT NULL,
+        "discount" NUMERIC(12, 2) DEFAULT 0.00,
+        "grandTotal" NUMERIC(12, 2) NOT NULL,
+        "terms" JSONB,
+        "bankDetails" JSONB,
+        "shareHash" VARCHAR(255)
+      )
+    `);
+
+    console.log("Checking if seed data is needed...");
+
+    // Seed Settings
+    const settingsRes = await client.query('SELECT COUNT(*) FROM settings');
+    if (parseInt(settingsRes.rows[0].count, 10) === 0) {
+      console.log("Seeding default settings...");
+      await client.query(`
+        INSERT INTO settings (
+          "id", "storeName", "tagline", "established", "address", "phone", "email", 
+          "gstin", "bankAccountNo", "bankIfsc", "bankName", "terms", "whatsappTemplate"
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      `, [
+        'default',
+        DEFAULT_SETTINGS.storeName,
+        DEFAULT_SETTINGS.tagline,
+        DEFAULT_SETTINGS.established,
+        DEFAULT_SETTINGS.address,
+        DEFAULT_SETTINGS.phone,
+        DEFAULT_SETTINGS.email,
+        DEFAULT_SETTINGS.gstin,
+        DEFAULT_SETTINGS.bankAccountNo,
+        DEFAULT_SETTINGS.bankIfsc,
+        DEFAULT_SETTINGS.bankName,
+        JSON.stringify(DEFAULT_SETTINGS.terms),
+        DEFAULT_SETTINGS.whatsappTemplate
+      ]);
+    }
+
+    // Seed Products
+    const productsRes = await client.query('SELECT COUNT(*) FROM products');
+    if (parseInt(productsRes.rows[0].count, 10) === 0) {
+      console.log("Seeding initial products...");
+      for (const p of INITIAL_PRODUCTS) {
+        await client.query(`
+          INSERT INTO products ("id", "name", "sku", "brand", "category", "price", "gst", "stock", "warranty")
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        `, [p.id, p.name, p.sku, p.brand, p.category, p.price, p.gst, p.stock, p.warranty]);
+      }
+    }
+
+    // Seed Customers
+    const customersRes = await client.query('SELECT COUNT(*) FROM customers');
+    if (parseInt(customersRes.rows[0].count, 10) === 0) {
+      console.log("Seeding initial customers...");
+      for (const c of INITIAL_CUSTOMERS) {
+        await client.query(`
+          INSERT INTO customers ("id", "name", "phone", "email", "address", "gst")
+          VALUES ($1, $2, $3, $4, $5, $6)
+        `, [c.id, c.name, c.phone, c.email, c.address, c.gst]);
+      }
+    }
+
+    // Seed Quotations
+    const quotationsRes = await client.query('SELECT COUNT(*) FROM quotations');
+    if (parseInt(quotationsRes.rows[0].count, 10) === 0) {
+      console.log("Seeding initial quotations...");
+      for (const q of INITIAL_QUOTATIONS) {
+        await client.query(`
+          INSERT INTO quotations (
+            "id", "quotationNumber", "date", "expiryDate", "customerId", "customerName", 
+            "status", "items", "subtotal", "gstTotal", "discount", "grandTotal", "terms", "bankDetails", "shareHash"
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+        `, [
+          q.id, q.quotationNumber, q.date, q.expiryDate, q.customerId, q.customerName,
+          q.status, JSON.stringify(q.items), q.subtotal, q.gstTotal, q.discount, q.grandTotal,
+          JSON.stringify(q.terms), JSON.stringify(q.bankDetails), q.shareHash
+        ]);
+      }
+    }
+
+    console.log("Migrations and seeding complete!");
+  } catch (err) {
+    console.error("Database Migration Error:", err);
+  } finally {
+    client.release();
+  }
+}
+
+// Run DB Setup
+initializeDatabase().catch(err => console.error("Initial DB connection failed:", err));
+
+// ==========================================
+// API ENDPOINTS
+// ==========================================
+
+// Health check
+app.get('/api/status', (req, res) => {
+  res.json({ status: 'ok', message: 'KPBabu Fullstack Server is running smoothly!' });
+});
+
+// ------------------------------------------
+// 1. Settings Endpoints
+// ------------------------------------------
+app.get('/api/settings', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM settings WHERE id = $1', ['default']);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Settings not found' });
+    }
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to retrieve settings' });
+  }
+});
+
+app.put('/api/settings', async (req, res) => {
+  try {
+    const s = req.body;
+    const query = `
+      UPDATE settings SET
+        "storeName" = $1, "tagline" = $2, "established" = $3, "address" = $4,
+        "phone" = $5, "email" = $6, "gstin" = $7, "bankAccountNo" = $8,
+        "bankIfsc" = $9, "bankName" = $10, "terms" = $11, "whatsappTemplate" = $12
+      WHERE id = 'default'
+      RETURNING *
+    `;
+    const result = await pool.query(query, [
+      s.storeName, s.tagline, s.established, s.address,
+      s.phone, s.email, s.gstin, s.bankAccountNo,
+      s.bankIfsc, s.bankName, JSON.stringify(s.terms), s.whatsappTemplate
+    ]);
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to update settings' });
+  }
+});
+
+// ------------------------------------------
+// 2. Products Endpoints (CRUD)
+// ------------------------------------------
+app.get('/api/products', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM products ORDER BY name ASC');
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to retrieve products' });
+  }
+});
+
+app.post('/api/products', async (req, res) => {
+  try {
+    const p = req.body;
+    // Support bulk inserts (from Excel imports)
+    if (Array.isArray(p)) {
+      const inserted = [];
+      for (const prod of p) {
+        const result = await pool.query(`
+          INSERT INTO products ("id", "name", "sku", "brand", "category", "price", "gst", "stock", "warranty")
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+          RETURNING *
+        `, [prod.id, prod.name, prod.sku, prod.brand, prod.category, prod.price, prod.gst, prod.stock, prod.warranty]);
+        inserted.push(result.rows[0]);
+      }
+      return res.status(201).json(inserted);
+    }
+
+    // Single insert
+    const result = await pool.query(`
+      INSERT INTO products ("id", "name", "sku", "brand", "category", "price", "gst", "stock", "warranty")
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      RETURNING *
+    `, [p.id, p.name, p.sku, p.brand, p.category, p.price, p.gst, p.stock, p.warranty]);
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to create product' });
+  }
+});
+
+app.put('/api/products/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const p = req.body;
+    const result = await pool.query(`
+      UPDATE products SET
+        "name" = $1, "sku" = $2, "brand" = $3, "category" = $4,
+        "price" = $5, "gst" = $6, "stock" = $7, "warranty" = $8
+      WHERE "id" = $9
+      RETURNING *
+    `, [p.name, p.sku, p.brand, p.category, p.price, p.gst, p.stock, p.warranty, id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to update product' });
+  }
+});
+
+app.delete('/api/products/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query('DELETE FROM products WHERE "id" = $1 RETURNING *', [id]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+    res.json({ message: 'Product deleted successfully', product: result.rows[0] });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to delete product' });
+  }
+});
+
+// ------------------------------------------
+// 3. Customers Endpoints (CRUD)
+// ------------------------------------------
+app.get('/api/customers', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM customers ORDER BY name ASC');
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to retrieve customers' });
+  }
+});
+
+app.post('/api/customers', async (req, res) => {
+  try {
+    const c = req.body;
+    const result = await pool.query(`
+      INSERT INTO customers ("id", "name", "phone", "email", "address", "gst")
+      VALUES ($1, $2, $3, $4, $5, $6)
+      RETURNING *
+    `, [c.id, c.name, c.phone, c.email, c.address, c.gst]);
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to create customer' });
+  }
+});
+
+app.put('/api/customers/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const c = req.body;
+    const result = await pool.query(`
+      UPDATE customers SET
+        "name" = $1, "phone" = $2, "email" = $3, "address" = $4, "gst" = $5
+      WHERE "id" = $6
+      RETURNING *
+    `, [c.name, c.phone, c.email, c.address, c.gst, id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Customer not found' });
+    }
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to update customer' });
+  }
+});
+
+app.delete('/api/customers/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query('DELETE FROM customers WHERE "id" = $1 RETURNING *', [id]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Customer not found' });
+    }
+    res.json({ message: 'Customer deleted successfully', customer: result.rows[0] });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to delete customer' });
+  }
+});
+
+// ------------------------------------------
+// 4. Quotations Endpoints (CRUD + Stock Trigger)
+// ------------------------------------------
+app.get('/api/quotations', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM quotations ORDER BY date DESC, "quotationNumber" DESC');
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to retrieve quotations' });
+  }
+});
+
+app.post('/api/quotations', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const q = req.body;
+
+    // Check if quotation already exists (for upserts)
+    const exists = await client.query('SELECT status FROM quotations WHERE "id" = $1', [q.id]);
+    
+    let result;
+    const isNew = exists.rows.length === 0;
+    
+    if (isNew) {
+      // Insert new quotation
+      result = await client.query(`
+        INSERT INTO quotations (
+          "id", "quotationNumber", "date", "expiryDate", "customerId", "customerName", 
+          "status", "items", "subtotal", "gstTotal", "discount", "grandTotal", "terms", "bankDetails", "shareHash"
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+        RETURNING *
+      `, [
+        q.id, q.quotationNumber, q.date, q.expiryDate, q.customerId, q.customerName,
+        q.status || 'Pending', JSON.stringify(q.items), q.subtotal, q.gstTotal, q.discount, q.grandTotal,
+        JSON.stringify(q.terms), JSON.stringify(q.bankDetails), q.shareHash
+      ]);
+
+      // Trigger: If quotation is created directly with "Approved" status, deduct stock levels
+      if (q.status === 'Approved') {
+        for (const item of q.items) {
+          if (item.productId) {
+            await client.query(`
+              UPDATE products SET stock = GREATEST(0, stock - $1) WHERE id = $2
+            `, [item.qty, item.productId]);
+          }
+        }
+      }
+    } else {
+      // Update existing quotation
+      const oldStatus = exists.rows[0].status;
+      
+      result = await client.query(`
+        UPDATE quotations SET
+          "quotationNumber" = $1, "date" = $2, "expiryDate" = $3, "customerId" = $4,
+          "customerName" = $5, "status" = $6, "items" = $7, "subtotal" = $8,
+          "gstTotal" = $9, "discount" = $10, "grandTotal" = $11, "terms" = $12,
+          "bankDetails" = $13, "shareHash" = $14
+        WHERE "id" = $15
+        RETURNING *
+      `, [
+        q.quotationNumber, q.date, q.expiryDate, q.customerId, q.customerName,
+        q.status, JSON.stringify(q.items), q.subtotal, q.gstTotal, q.discount, q.grandTotal,
+        JSON.stringify(q.terms), JSON.stringify(q.bankDetails), q.shareHash, q.id
+      ]);
+
+      // Trigger: If status changed from something else to "Approved", deduct stock levels
+      if (q.status === 'Approved' && oldStatus !== 'Approved') {
+        for (const item of q.items) {
+          if (item.productId) {
+            await client.query(`
+              UPDATE products SET stock = GREATEST(0, stock - $1) WHERE id = $2
+            `, [item.qty, item.productId]);
+          }
+        }
+      }
+    }
+
+    await client.query('COMMIT');
+    res.status(isNew ? 201 : 200).json(result.rows[0]);
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error(err);
+    res.status(500).json({ error: 'Failed to save quotation record' });
+  } finally {
+    client.release();
+  }
+});
+
+app.delete('/api/quotations/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query('DELETE FROM quotations WHERE "id" = $1 RETURNING *', [id]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Quotation record not found' });
+    }
+    res.json({ message: 'Quotation deleted successfully', quotation: result.rows[0] });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to delete quotation record' });
+  }
+});
+
+// ------------------------------------------
+// 5. Public Viewing Endpoint (No Auth)
+// ------------------------------------------
+app.get('/api/public-quotation/:shareHash', async (req, res) => {
+  try {
+    const { shareHash } = req.params;
+    
+    // Fetch quotation matching hash
+    const quoteRes = await pool.query('SELECT * FROM quotations WHERE "shareHash" = $1', [shareHash]);
+    if (quoteRes.rows.length === 0) {
+      return res.status(404).json({ error: 'Quotation link invalid or expired' });
+    }
+    
+    const quotation = quoteRes.rows[0];
+    
+    // Fetch settings to supply brand styling
+    const settingsRes = await pool.query('SELECT * FROM settings WHERE id = $1', ['default']);
+    const settings = settingsRes.rows[0] || null;
+
+    // Fetch customer list or the single linked customer
+    const customersRes = await pool.query('SELECT * FROM customers');
+    
+    res.json({
+      quotation,
+      settings,
+      customers: customersRes.rows
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to compile public quotation view' });
+  }
+});
+
+// ==========================================
+// PRODUCTION FRONTEND SERVING
+// ==========================================
+
+if (isProduction) {
+  // Serve the React build artifact 'dist' statically
+  app.use(express.static(path.join(__dirname, 'dist')));
+
+  // Support frontend deep-link direct routing via fallback
+  app.get('*', (req, res) => {
+    res.sendFile(path.resolve(__dirname, 'dist', 'index.html'));
+  });
+}
+
+// Start Listening
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`==================================================`);
+  console.log(`🚀 KPBabu Server running on port ${PORT}`);
+  console.log(`⚙️  Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`==================================================`);
+});
