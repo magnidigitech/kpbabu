@@ -1,0 +1,326 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
+
+  --color-brand-slate: #f8fafc;
+  --color-brand-blue-dark: #1b3b6f;
+  /* Logo Navy Blue */
+  --color-brand-blue: #2563eb;
+  --color-brand-cyan: #0284c7;
+  --color-brand-yellow: #d97706;
+  --color-brand-red: #e11d48;
+  /* Logo Red */
+  --color-brand-gray-light: #f1f5f9;
+}
+
+/* Custom Base Styles - Light Theme */
+body {
+  font-family: var(--font-sans);
+  background-color: #f1f5f9;
+  /* Premium light gray slate background */
+  color: #1e293b;
+  /* Deep slate text */
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Light Theme Card Panel Classes */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
+}
+
+.glass-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.01);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-card:hover {
+  box-shadow: 0 12px 20px -8px rgba(27, 59, 111, 0.08);
+}
+
+.glass-input {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #0f172a;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-input:focus {
+  border-color: #1b3b6f;
+  /* Brand Navy Blue */
+  box-shadow: 0 0 0 2px rgba(27, 59, 111, 0.15);
+  background: #ffffff;
+  outline: none;
+}
+
+/* Custom Scrollbar - Light Mode */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* ---------------------------------------------------- */
+/* PRINT STYLES - Matches the original invoice exactly  */
+/* ---------------------------------------------------- */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+
+  body {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    font-family: 'Times New Roman', Times, serif, 'Inter', sans-serif !important;
+    font-size: 12pt !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Hide UI elements */
+  nav,
+  aside,
+  main,
+  header,
+  footer,
+  button,
+  .no-print,
+  .settings-panel,
+  .sidebar,
+  .tab-navigation,
+  .action-buttons {
+    display: none !important;
+  }
+
+  /* Reset the modal overlay wrapper for printing */
+  .quote-preview-overlay {
+    position: absolute !important;
+    inset: 0 !important;
+    background: transparent !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    display: block !important;
+    overflow: visible !important;
+    z-index: auto !important;
+  }
+
+  /* Ensure the root container occupies full space */
+  #root {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-height: 0 !important;
+    display: block !important;
+  }
+
+  /* Format quotation preview wrapper specifically */
+  .print-container {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+  }
+
+  .print-page {
+    background: #ffffff !important;
+    color: #000000 !important;
+    border: none !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+    padding: 12mm 15mm 12mm 15mm !important;
+    /* Compact vertical margins for print */
+    width: 100% !important;
+    height: 297mm !important;
+    /* Force exact standard A4 height */
+    max-height: 297mm !important;
+    box-sizing: border-box !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
+    position: relative !important;
+  }
+
+  /* Only insert a page break BETWEEN pages, not after the very last one */
+  .print-page[data-last-page="false"] {
+    page-break-after: always !important;
+    break-after: page !important;
+  }
+
+  .print-page[data-last-page="true"] {
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+  }
+
+  /* Force table layouts & border colors to remain solid black/gray */
+  table {
+    border-collapse: collapse !important;
+    width: 100% !important;
+  }
+
+  .print-only-table {
+    display: table !important;
+  }
+
+  .mobile-only-cards {
+    display: none !important;
+  }
+
+  th,
+  td {
+    border: 1px solid #777777 !important;
+    color: #000000 !important;
+    padding: 5px 8px !important;
+    /* Highly optimized print padding */
+    line-height: 1.3 !important;
+    font-size: 9.5pt !important;
+  }
+
+  th {
+    background-color: #aaaaaa !important;
+    color: #000000 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Specific colors from the original print */
+  .print-text-red {
+    color: #ff0000 !important;
+  }
+
+  .print-text-blue {
+    color: #0000ff !important;
+  }
+
+  /* Clean up page breaks */
+  .page-break-after {
+    page-break-after: always !important;
+  }
+
+  .page-break-before {
+    page-break-before: always !important;
+  }
+
+  .page-break-inside-avoid {
+    page-break-inside: avoid !important;
+  }
+}
+
+/* Screen Styles for Quotation Preview Page container */
+@media screen {
+  .print-page {
+    height: 297mm;
+    max-height: 297mm;
+  }
+
+  .print-only-table {
+    display: table !important;
+  }
+
+  .mobile-only-cards {
+    display: none !important;
+  }
+}
+
+/* Mobile Screen view responsiveness overrides */
+@media screen and (max-width: 768px) {
+  .print-container {
+    padding: 0 4px !important;
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+  }
+
+  .print-only-table {
+    display: none !important;
+  }
+
+  .mobile-only-cards {
+    display: block !important;
+  }
+
+  .print-page {
+    height: auto !important;
+    max-height: none !important;
+    width: 100% !important;
+    padding: 24px 16px !important;
+    font-size: 10.5pt !important;
+    border-radius: 16px !important;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05) !important;
+    font-family: var(--font-sans) !important;
+    /* Make mobile screen view look modern and clean */
+  }
+
+  /* Compact header details on screen */
+  .print-page img {
+    max-width: 130px !important;
+    height: auto !important;
+  }
+
+  /* Dynamic font reductions for screen */
+  .print-page .text-2xl,
+  .print-page .text-3xl {
+    font-size: 13.5pt !important;
+    line-height: 1.25 !important;
+  }
+
+  .print-page .text-lg,
+  .print-page .text-xl {
+    font-size: 11pt !important;
+  }
+
+  /* Convert client metadata grids to vertical cards */
+  .print-page .grid-cols-2 {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+
+  .print-page .text-right {
+    text-align: left !important;
+  }
+
+
+
+  /* Convert terms columns to natural stack */
+  .print-page .grid-cols-1.md\:grid-cols-2 {
+    grid-template-columns: 1fr !important;
+    gap: 20px !important;
+  }
+
+  .print-page .items-end {
+    align-items: flex-start !important;
+    text-align: left !important;
+  }
+}
