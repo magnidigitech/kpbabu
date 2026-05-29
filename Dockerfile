@@ -1,7 +1,7 @@
 # ==========================================
 # STAGE 1: Build Frontend Assets
 # ==========================================
-FROM node:20-alpine AS build-stage
+FROM node:22-alpine AS build-stage
 
 WORKDIR /app
 
@@ -9,7 +9,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install all dependencies (including devDependencies like Vite)
-RUN npm ci
+RUN npm install
 
 # Copy project files
 COPY . .
@@ -20,7 +20,7 @@ RUN npm run build
 # ==========================================
 # STAGE 2: Runner Container
 # ==========================================
-FROM node:20-alpine AS production-stage
+FROM node:22-alpine AS production-stage
 
 WORKDIR /app
 
@@ -31,7 +31,7 @@ ENV PORT=5000
 COPY package*.json ./
 
 # Install only production-only dependencies
-RUN npm ci --only=production
+RUN npm install --omit=dev
 
 # Copy Express server entrypoint
 COPY server.js ./
