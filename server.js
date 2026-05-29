@@ -21,14 +21,19 @@ app.use(express.json({ limit: '10mb' }));
 
 // Database connection
 const { Pool } = pg;
-const isProduction = process.env.NODE_ENV === 'production';
 
 // In Coolify/production we connect using DATABASE_URL. In development, we use DATABASE_URL or fallback to local postgres setup
 const connectionString = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/kpbabu';
 
+// Internal Coolify connections do not use SSL. We should only enable SSL if connecting to external secure cloud DBs like Supabase or Neon.
+const useSSL = connectionString.includes('sslmode=') || 
+               connectionString.includes('supabase.co') || 
+               connectionString.includes('neon.tech') || 
+               connectionString.includes('aivencloud.com');
+
 const pool = new Pool({
   connectionString,
-  ssl: isProduction ? { rejectUnauthorized: false } : false
+  ssl: useSSL ? { rejectUnauthorized: false } : false
 });
 
 // Seed Data for Auto-Migration

@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { 
-  initializeDatabase, 
   getLocalStorageData, 
-  setLocalStorageData 
+  setLocalStorageData,
+  DEFAULT_SETTINGS
 } from "./data/seedData";
 
 // Components
@@ -51,16 +51,43 @@ export default function App() {
     async function loadData() {
       try {
         const [settingsRes, productsRes, customersRes, quotationsRes] = await Promise.all([
-          fetch('/api/settings').then(res => res.json()),
-          fetch('/api/products').then(res => res.json()),
-          fetch('/api/customers').then(res => res.json()),
-          fetch('/api/quotations').then(res => res.json())
+          fetch('/api/settings').then(res => res.json()).catch(err => ({ error: true })),
+          fetch('/api/products').then(res => res.json()).catch(err => ({ error: true })),
+          fetch('/api/customers').then(res => res.json()).catch(err => ({ error: true })),
+          fetch('/api/quotations').then(res => res.json()).catch(err => ({ error: true }))
         ]);
 
-        if (settingsRes && !settingsRes.error) setSettings(settingsRes);
-        if (Array.isArray(productsRes)) setProducts(productsRes);
-        if (Array.isArray(customersRes)) setCustomers(customersRes);
-        if (Array.isArray(quotationsRes)) setQuotations(quotationsRes);
+        // Resilient DB Settings load
+        if (settingsRes && !settingsRes.error) {
+          setSettings(settingsRes);
+        } else {
+          console.warn("DB settings failed, falling back to local/default.");
+          setSettings(getLocalStorageData("kpb_settings", DEFAULT_SETTINGS));
+        }
+
+        // Resilient DB Products load
+        if (Array.isArray(productsRes) && productsRes.length > 0) {
+          setProducts(productsRes);
+        } else {
+          console.warn("DB products failed, falling back to local.");
+          setProducts(getLocalStorageData("kpb_products", []));
+        }
+
+        // Resilient DB Customers load
+        if (Array.isArray(customersRes) && customersRes.length > 0) {
+          setCustomers(customersRes);
+        } else {
+          console.warn("DB customers failed, falling back to local.");
+          setCustomers(getLocalStorageData("kpb_customers", []));
+        }
+
+        // Resilient DB Quotations load
+        if (Array.isArray(quotationsRes) && quotationsRes.length > 0) {
+          setQuotations(quotationsRes);
+        } else {
+          console.warn("DB quotations failed, falling back to local.");
+          setQuotations(getLocalStorageData("kpb_quotations", []));
+        }
 
         const sessionUser = getLocalStorageData("kpb_session_user", null);
         if (sessionUser) {
@@ -73,7 +100,7 @@ export default function App() {
         const match = path.match(/^\/quotation\/([^/]+)/);
         if (match) {
           const shareHash = decodeURIComponent(match[1]);
-          const publicRes = await fetch(`/api/public-quotation/${shareHash}`).then(res => res.json());
+          const publicRes = await fetch(`/api/public-quotation/${shareHash}`).then(res => res.json()).catch(err => null);
           if (publicRes && !publicRes.error) {
             setPublicViewData(publicRes);
           }
@@ -81,7 +108,11 @@ export default function App() {
 
         setIsInitialized(true);
       } catch (error) {
-        console.error("Error loading fullstack database:", error);
+        console.error("Error loading fullstack database, using complete client fallbacks:", error);
+        setSettings(getLocalStorageData("kpb_settings", DEFAULT_SETTINGS));
+        setProducts(getLocalStorageData("kpb_products", []));
+        setCustomers(getLocalStorageData("kpb_customers", []));
+        setQuotations(getLocalStorageData("kpb_quotations", []));
         setIsInitialized(true);
       }
     }
