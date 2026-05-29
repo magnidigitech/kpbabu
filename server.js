@@ -636,7 +636,7 @@ if (isProduction) {
   app.use(express.static(path.join(__dirname, 'dist')));
 
   // Support frontend deep-link direct routing via fallback
-  app.get('/*', (req, res) => {
+  app.get(/.*/, (req, res) => {
     res.sendFile(path.resolve(__dirname, 'dist', 'index.html'));
   });
 }
