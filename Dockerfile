@@ -25,7 +25,7 @@ FROM node:22-alpine AS production-stage
 WORKDIR /app
 
 ENV NODE_ENV=production
-ENV PORT=5000
+ENV PORT=3000
 
 # Copy dependency catalogs
 COPY package*.json ./
@@ -40,7 +40,7 @@ COPY server.js ./
 COPY --from=build-stage /app/dist ./dist
 
 # Expose server port
-EXPOSE 5000
+EXPOSE 3000
 
 # Start Express Fullstack Server
 CMD ["node", "server.js"]
