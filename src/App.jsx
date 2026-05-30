@@ -519,6 +519,8 @@ export default function App() {
 
   const [statusModalQuotation, setStatusModalQuotation] = useState(null);
   const [selectedStatus, setSelectedStatus] = useState("Pending");
+  const [confirmInputValid, setConfirmInputValid] = useState(false);
+
 
   const handleOpenStatusModal = (q) => {
     setStatusModalQuotation(q);
@@ -809,33 +811,18 @@ export default function App() {
                 </label>
                 <input
                   type="text"
-                  id="dialog-confirm-input"
                   placeholder={confirmDialog.inputPlaceholder || "Type exactly to confirm..."}
                   className="glass-input px-4 py-2.5 rounded-xl text-xs w-full font-bold focus:border-rose-500 focus:ring-1 focus:ring-rose-500/20 shadow-sm"
                   onChange={(e) => {
                     const typed = e.target.value.trim().toLowerCase();
-                    const matched = confirmDialog.expectedInputs.some(expected => 
-                      expected.trim().toLowerCase() === typed
+                    const matched = confirmDialog.expectedInputs.some(
+                      (expected) => expected.trim().toLowerCase() === typed
                     );
-                    const btn = document.getElementById("dialog-confirm-btn");
-                    if (btn) {
-                      if (matched) {
-                        btn.removeAttribute("disabled");
-                        btn.classList.remove("opacity-50", "cursor-not-allowed");
-                        btn.classList.add("hover:from-rose-600", "hover:to-rose-700");
-                      } else {
-                        btn.setAttribute("disabled", "true");
-                        btn.classList.add("opacity-50", "cursor-not-allowed");
-                        btn.classList.remove("hover:from-rose-600", "hover:to-rose-700");
-                      }
-                    }
+                    setConfirmInputValid(matched);
                   }}
                 />
                 <p className="text-[10px] text-slate-400 font-semibold leading-relaxed">
                   Required: <span className="font-extrabold text-slate-700 select-all">"{confirmDialog.expectedInputs[0]}"</span>
-                  {confirmDialog.expectedInputs[0] !== confirmDialog.expectedInputs[1] && (
-                    <> or <span className="font-extrabold text-slate-700 select-all">"{confirmDialog.expectedInputs[1]}"</span></>
-                  )}
                 </p>
               </div>
             )}
@@ -846,6 +833,7 @@ export default function App() {
                 onClick={() => {
                   if (confirmDialog.onCancel) confirmDialog.onCancel();
                   setConfirmDialog(null);
+                  setConfirmInputValid(false);
                 }}
                 className="flex-1 py-2.5 rounded-xl text-xs font-bold border border-slate-200 hover:bg-slate-50 text-slate-500 transition-colors cursor-pointer text-center"
               >
@@ -853,14 +841,16 @@ export default function App() {
               </button>
               <button
                 type="button"
-                id="dialog-confirm-btn"
-                disabled={confirmDialog.requireInput}
+                disabled={confirmDialog.requireInput && !confirmInputValid}
                 onClick={() => {
                   confirmDialog.onConfirm();
                   setConfirmDialog(null);
+                  setConfirmInputValid(false);
                 }}
-                className={`flex-1 py-2.5 rounded-xl text-xs font-extrabold text-white bg-gradient-to-r from-rose-500 to-rose-600 shadow-md shadow-rose-900/10 cursor-pointer transition-all ${
-                  confirmDialog.requireInput ? "opacity-50 cursor-not-allowed" : "hover:from-rose-600 hover:to-rose-700"
+                className={`flex-1 py-2.5 rounded-xl text-xs font-extrabold text-white bg-gradient-to-r from-rose-500 to-rose-600 shadow-md shadow-rose-900/10 transition-all ${
+                  confirmDialog.requireInput && !confirmInputValid
+                    ? "opacity-40 cursor-not-allowed"
+                    : "cursor-pointer hover:from-rose-600 hover:to-rose-700"
                 }`}
               >
                 Confirm Delete
@@ -911,69 +901,54 @@ export default function App() {
               </label>
 
               {/* Option: Pending */}
-              <div 
-                className={`flex items-start space-x-3.5 p-3.5 rounded-xl border-2 transition-all cursor-pointer ${
-                  selectedStatus === "Pending" 
-                    ? "border-amber-505 bg-amber-50/30 text-amber-900 shadow-sm border-amber-500" 
+              <div
+                className={`flex items-center space-x-3.5 p-3.5 rounded-xl border-2 transition-all cursor-pointer ${
+                  selectedStatus === "Pending"
+                    ? "border-amber-500 bg-amber-50/30 text-amber-900 shadow-sm"
                     : "border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700"
-                }`} 
+                }`}
                 onClick={() => setSelectedStatus("Pending")}
               >
-                <div className={`h-4.5 w-4.5 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 transition-all ${
+                <div className={`h-4.5 w-4.5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
                   selectedStatus === "Pending" ? "border-amber-500 bg-white" : "border-slate-300 bg-white"
                 }`}>
                   {selectedStatus === "Pending" && <div className="h-2 w-2 rounded-full bg-amber-500" />}
                 </div>
-                <div className="text-left">
-                  <span className="text-xs font-black uppercase tracking-wider block">Pending Status</span>
-                  <span className="text-[10px] text-slate-500 font-semibold block mt-0.5 leading-snug">
-                    Draft quote under active client negotiation, review and verification.
-                  </span>
-                </div>
+                <span className="text-xs font-black uppercase tracking-wider">Pending</span>
               </div>
 
               {/* Option: Approved */}
-              <div 
-                className={`flex items-start space-x-3.5 p-3.5 rounded-xl border-2 transition-all cursor-pointer ${
-                  selectedStatus === "Approved" 
-                    ? "border-emerald-505 bg-emerald-50/30 text-emerald-900 shadow-sm border-emerald-500" 
+              <div
+                className={`flex items-center space-x-3.5 p-3.5 rounded-xl border-2 transition-all cursor-pointer ${
+                  selectedStatus === "Approved"
+                    ? "border-emerald-500 bg-emerald-50/30 text-emerald-900 shadow-sm"
                     : "border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700"
-                }`} 
+                }`}
                 onClick={() => setSelectedStatus("Approved")}
               >
-                <div className={`h-4.5 w-4.5 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 transition-all ${
+                <div className={`h-4.5 w-4.5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
                   selectedStatus === "Approved" ? "border-emerald-500 bg-white" : "border-slate-300 bg-white"
                 }`}>
                   {selectedStatus === "Approved" && <div className="h-2 w-2 rounded-full bg-emerald-500" />}
                 </div>
-                <div className="text-left">
-                  <span className="text-xs font-black uppercase tracking-wider block">Approved Status</span>
-                  <span className="text-[10px] text-slate-500 font-semibold block mt-0.5 leading-snug">
-                    Finalized commercial offer. Synchronizes product stock and locks prices.
-                  </span>
-                </div>
+                <span className="text-xs font-black uppercase tracking-wider">Approved</span>
               </div>
 
               {/* Option: Expired */}
-              <div 
-                className={`flex items-start space-x-3.5 p-3.5 rounded-xl border-2 transition-all cursor-pointer ${
-                  selectedStatus === "Expired" 
-                    ? "border-rose-550 bg-rose-50/30 text-rose-900 shadow-sm border-rose-500" 
+              <div
+                className={`flex items-center space-x-3.5 p-3.5 rounded-xl border-2 transition-all cursor-pointer ${
+                  selectedStatus === "Expired"
+                    ? "border-rose-500 bg-rose-50/30 text-rose-900 shadow-sm"
                     : "border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700"
-                }`} 
+                }`}
                 onClick={() => setSelectedStatus("Expired")}
               >
-                <div className={`h-4.5 w-4.5 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 transition-all ${
+                <div className={`h-4.5 w-4.5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
                   selectedStatus === "Expired" ? "border-rose-500 bg-white" : "border-slate-300 bg-white"
                 }`}>
                   {selectedStatus === "Expired" && <div className="h-2 w-2 rounded-full bg-rose-500" />}
                 </div>
-                <div className="text-left">
-                  <span className="text-xs font-black uppercase tracking-wider block">Expired Status</span>
-                  <span className="text-[10px] text-slate-500 font-semibold block mt-0.5 leading-snug">
-                    Quotation validity period has elapsed. Duplicate to re-issue new terms.
-                  </span>
-                </div>
+                <span className="text-xs font-black uppercase tracking-wider">Expired</span>
               </div>
             </div>
 
