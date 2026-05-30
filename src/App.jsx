@@ -377,7 +377,7 @@ export default function App() {
       inputPlaceholder: `Type "${c.name}" here to authorize...`,
       onConfirm: async () => {
         try {
-          const res = await fetch(`/api/customers/${id}`, { method: 'DELETE' });
+          const res = await fetch(`/api/customers/${id}/delete`, { method: 'POST' });
           if (!res.ok) {
             let errMsg = `Server error ${res.status}`;
             try {
@@ -490,7 +490,7 @@ export default function App() {
       inputPlaceholder: `Type "${q.quotationNumber}" here to confirm...`,
       onConfirm: async () => {
         try {
-          await fetch(`/api/quotations/${id}`, { method: 'DELETE' });
+          await fetch(`/api/quotations/${id}/delete`, { method: 'POST' });
           setQuotations(quotations.filter(x => x.id !== id));
           showToast("Quotation deleted successfully!", "success");
         } catch (error) {

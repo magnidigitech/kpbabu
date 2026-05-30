@@ -417,9 +417,9 @@ app.put('/api/customers/:id', async (req, res) => {
   }
 });
 
-app.delete('/api/customers/:id', async (req, res) => {
+// Handle customer delete (DELETE method + POST alias for proxies that block DELETE)
+async function deleteCustomerById(id, res) {
   try {
-    const { id } = req.params;
     // Nullify customerId in any linked quotations first (handles DBs without CASCADE)
     await pool.query('UPDATE quotations SET "customerId" = NULL WHERE "customerId" = $1', [id]);
     const result = await pool.query('DELETE FROM customers WHERE "id" = $1 RETURNING *', [id]);
@@ -431,7 +431,9 @@ app.delete('/api/customers/:id', async (req, res) => {
     console.error(err);
     res.status(500).json({ error: 'Failed to delete customer' });
   }
-});
+}
+app.delete('/api/customers/:id', (req, res) => deleteCustomerById(req.params.id, res));
+app.post('/api/customers/:id/delete', (req, res) => deleteCustomerById(req.params.id, res));
 
 // ------------------------------------------
 // 4. Quotations Endpoints (CRUD + Stock Trigger)
@@ -571,9 +573,9 @@ app.put('/api/quotations/:id/status', async (req, res) => {
   }
 });
 
-app.delete('/api/quotations/:id', async (req, res) => {
+// Handle quotation delete (DELETE method + POST alias for proxies that block DELETE)
+async function deleteQuotationById(id, res) {
   try {
-    const { id } = req.params;
     const result = await pool.query('DELETE FROM quotations WHERE "id" = $1 RETURNING *', [id]);
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Quotation record not found' });
@@ -583,7 +585,9 @@ app.delete('/api/quotations/:id', async (req, res) => {
     console.error(err);
     res.status(500).json({ error: 'Failed to delete quotation record' });
   }
-});
+}
+app.delete('/api/quotations/:id', (req, res) => deleteQuotationById(req.params.id, res));
+app.post('/api/quotations/:id/delete', (req, res) => deleteQuotationById(req.params.id, res));
 
 // ------------------------------------------
 // 5. Public Viewing Endpoint (No Auth)
