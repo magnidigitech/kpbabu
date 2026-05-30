@@ -8,14 +8,20 @@ import {
   LogOut
 } from "lucide-react";
 
-export default function Sidebar({ activeTab, setActiveTab, onLogout, user }) {
-  const menuItems = [
-    { id: "dashboard", name: "Dashboard", icon: LayoutDashboard },
-    { id: "builder", name: "Create Quotation", icon: FilePlus2 },
-    { id: "history", name: "Quotations History", icon: History },
-    { id: "customers", name: "Customers", icon: Users },
-    { id: "settings", name: "Settings", icon: SettingsIcon },
+export default function Sidebar({ activeTab, setActiveTab, onLogout, user, userRole }) {
+  const isStaff = userRole === "staff";
+
+  const allMenuItems = [
+    { id: "dashboard", name: "Dashboard", icon: LayoutDashboard, staffAllowed: false },
+    { id: "builder", name: "Create Quotation", icon: FilePlus2, staffAllowed: true },
+    { id: "history", name: "Quotations History", icon: History, staffAllowed: false },
+    { id: "customers", name: "Customers", icon: Users, staffAllowed: false },
+    { id: "settings", name: "Settings", icon: SettingsIcon, staffAllowed: false },
   ];
+
+  const menuItems = isStaff
+    ? allMenuItems.filter((item) => item.staffAllowed)
+    : allMenuItems;
 
   return (
     <aside className="no-print hidden md:flex flex-col w-64 glass-panel h-screen sticky top-0 left-0 border-r border-slate-200 text-slate-700 bg-white">

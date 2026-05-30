@@ -7,14 +7,18 @@ import {
   Settings
 } from "lucide-react";
 
-export default function TabNav({ activeTab, setActiveTab }) {
-  const tabs = [
-    { id: "dashboard", name: "Dashboard", icon: LayoutDashboard },
-    { id: "builder", name: "Build", icon: FilePlus2 },
-    { id: "history", name: "History", icon: History },
-    { id: "customers", name: "Clients", icon: Users },
-    { id: "settings", name: "Config", icon: Settings },
+export default function TabNav({ activeTab, setActiveTab, userRole }) {
+  const isStaff = userRole === "staff";
+
+  const allTabs = [
+    { id: "dashboard", name: "Dashboard", icon: LayoutDashboard, staffAllowed: false },
+    { id: "builder", name: "Build", icon: FilePlus2, staffAllowed: true },
+    { id: "history", name: "History", icon: History, staffAllowed: false },
+    { id: "customers", name: "Clients", icon: Users, staffAllowed: false },
+    { id: "settings", name: "Config", icon: Settings, staffAllowed: false },
   ];
+
+  const tabs = isStaff ? allTabs.filter((t) => t.staffAllowed) : allTabs;
 
   return (
     <nav className="no-print md:hidden fixed bottom-0 left-0 right-0 z-50 px-4 pb-4 pt-2 bg-gradient-to-t from-slate-100 via-slate-100/90 to-transparent">

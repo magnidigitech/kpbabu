@@ -157,24 +157,41 @@ export default function App() {
     loadData();
   }, []);
 
+  // Hardcoded credential store (role-based)
+  const CREDENTIALS = [
+    { username: "kpbabu",      password: "Kali@1965P",      role: "admin",  displayName: "KP Babu" },
+    { username: "kpbabustaff", password: "Kali.staff@1965", role: "staff",  displayName: "Staff" },
+  ];
+
   // Login handler
   const handleLogin = (e) => {
     e.preventDefault();
-    const { username, password, role } = loginForm;
+    const { username, password } = loginForm;
 
     if (!username.trim() || !password.trim()) {
       setLoginError("Please enter both username and password.");
       return;
     }
 
+    const match = CREDENTIALS.find(
+      (c) => c.username === username.trim() && c.password === password
+    );
+
+    if (!match) {
+      setLoginError("Invalid username or password. Please try again.");
+      return;
+    }
+
     const successfulUser = {
-      name: username.charAt(0).toUpperCase() + username.slice(1),
-      role: role
+      name: match.displayName,
+      role: match.role,
     };
 
     setUser(successfulUser);
     setIsLoggedIn(true);
     setLoginError("");
+    // Staff lands on builder tab only
+    if (match.role === "staff") setActiveTab("builder");
     setLocalStorageData("kpb_session_user", successfulUser);
   };
 
@@ -510,6 +527,25 @@ export default function App() {
 
   // Render correct panel
   const renderTabContent = () => {
+    const isStaff = user?.role === "staff";
+
+    // Staff can ONLY access the Quote Builder
+    if (isStaff && activeTab !== "builder") {
+      return (
+        <div className="flex flex-col items-center justify-center py-32 text-center">
+          <div className="h-16 w-16 rounded-2xl bg-rose-50 border border-rose-100 flex items-center justify-center mb-4 shadow-sm">
+            <svg className="h-8 w-8 text-rose-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m0 0v2m0-2h2m-2 0H10m2-5a4 4 0 100-8 4 4 0 000 8z" />
+            </svg>
+          </div>
+          <h2 className="text-sm font-extrabold uppercase tracking-wider text-slate-900 mb-1">Access Restricted</h2>
+          <p className="text-xs text-slate-400 font-semibold max-w-xs leading-relaxed">
+            Your staff account only has access to the <strong className="text-slate-600">Create Quotation</strong> section.
+          </p>
+        </div>
+      );
+    }
+
     switch (activeTab) {
       case "dashboard":
         return (
@@ -633,34 +669,6 @@ export default function App() {
           {/* Form */}
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="block text-xs font-bold text-slate-500 mb-1">Select Profile Role</label>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setLoginForm({ ...loginForm, role: "admin" })}
-                  className={`py-2.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
-                    loginForm.role === "admin"
-                      ? "bg-brand-blue-dark border-brand-blue-dark text-white shadow-md shadow-blue-900/10"
-                      : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:border-slate-300"
-                  }`}
-                >
-                  Administrator
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setLoginForm({ ...loginForm, role: "staff" })}
-                  className={`py-2.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
-                    loginForm.role === "staff"
-                      ? "bg-brand-blue-dark border-brand-blue-dark text-white shadow-md shadow-blue-900/10"
-                      : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:border-slate-300"
-                  }`}
-                >
-                  Sales Staff
-                </button>
-              </div>
-            </div>
-
-            <div>
               <label className="block text-xs font-bold text-slate-500 mb-1">Profile Username *</label>
               <div className="relative">
                 <UserIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
@@ -699,7 +707,7 @@ export default function App() {
           </form>
 
           <p className="text-[10px] text-slate-400 text-center mt-6 font-semibold">
-            For testing: type <strong className="text-slate-600 font-bold">admin</strong> / <strong className="text-slate-600 font-bold">admin</strong> to access.
+            Contact your administrator for login credentials.
           </p>
         </div>
       </div>
@@ -716,6 +724,7 @@ export default function App() {
         setActiveTab={setActiveTab}
         onLogout={handleLogout}
         user={user}
+        userRole={user?.role}
       />
 
       {/* Main Panel Content Container */}
@@ -726,7 +735,7 @@ export default function App() {
       </main>
 
       {/* Tab Nav - Mobile */}
-      <TabNav activeTab={activeTab} setActiveTab={setActiveTab} />
+      <TabNav activeTab={activeTab} setActiveTab={setActiveTab} userRole={user?.role} />
 
       {/* Live Pixel-Perfect A4 Print overlay */}
       {selectedQuotation && (
