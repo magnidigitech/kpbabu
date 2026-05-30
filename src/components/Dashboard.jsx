@@ -373,7 +373,7 @@ export default function Dashboard({
         </div>
 
         {/* ── MOBILE: Swipeable Cards ── */}
-        <div className="md:hidden divide-y divide-slate-100">
+        <div className="md:hidden flex flex-col gap-2.5 p-3">
           {filteredQuotations.length === 0 ? (
             <div className="px-5 py-10 text-center text-slate-400 font-bold text-xs">
               No quotations found matching your search.
@@ -511,7 +511,7 @@ function SwipeCard({ q, statusBar, statusBadge, formatCurrency, formatDateTimeIS
   const close = () => setSwipeX(0);
 
   return (
-    <div className="relative overflow-hidden">
+    <div className="relative overflow-hidden rounded-xl border border-slate-200 shadow-sm bg-white">
       {/* Actions revealed behind card on swipe */}
       <div
         className="absolute right-0 top-0 bottom-0 flex items-stretch"
