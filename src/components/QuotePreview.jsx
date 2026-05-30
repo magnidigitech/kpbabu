@@ -24,6 +24,22 @@ const formatPhone = (raw) => {
 export default function QuotePreview({ quotation, onClose, settings, customers = [] }) {
   if (!quotation) return null;
 
+  const [scale, setScale] = React.useState(1);
+
+  React.useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 840) {
+        const factor = (window.innerWidth - 16) / 840;
+        setScale(factor);
+      } else {
+        setScale(1);
+      }
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   const handlePrint = () => { window.print(); };
 
   const handleWhatsApp = () => {
@@ -84,6 +100,60 @@ export default function QuotePreview({ quotation, onClose, settings, customers =
     return `${day}.${month}.${year}`;
   };
 
+  // Calculate how to segment items into pages based on line weights
+  const getRowWeight = (item) => {
+    if (item.isDiscount) return 1.5;
+    if (!item.description) return 1;
+    const lines = item.description.split("\n").length;
+    return Math.max(1, lines);
+  };
+  
+  const pages = [];
+  const allItems = [...quotation.items];
+  
+  // If there's a discount, it acts as an additional row in the table
+  const discountRow = quotation.discount > 0 ? { isDiscount: true, totalPrice: -quotation.discount } : null;
+  const tableRows = discountRow ? [...allItems, discountRow] : allItems;
+  
+  const totalWeight = tableRows.reduce((sum, item) => sum + getRowWeight(item), 0);
+  
+  if (totalWeight <= 5) {
+    // Fits completely on a single page including signatures
+    pages.push(tableRows);
+  } else {
+    // Multi-page document
+    let currentPage = [];
+    let currentWeight = 0;
+    let isFirst = true;
+    
+    for (let i = 0; i < tableRows.length; i++) {
+      const item = tableRows[i];
+      const weight = getRowWeight(item);
+      const maxCapacity = isFirst ? 6 : 9; // First page capacity is smaller due to header/meta
+      
+      if (currentWeight + weight > maxCapacity && currentPage.length > 0) {
+        pages.push(currentPage);
+        currentPage = [item];
+        currentWeight = weight;
+        isFirst = false;
+      } else {
+        currentPage.push(item);
+        currentWeight += weight;
+      }
+    }
+    if (currentPage.length > 0) {
+      pages.push(currentPage);
+    }
+    
+    // If the item itself is so tall it takes the whole page but totalWeight > 5,
+    // we force signatures to render on Page 2
+    if (pages.length === 1) {
+      pages.push([]);
+    }
+  }
+  
+  const totalPages = pages.length;
+
   return (
     <div className="quote-preview-overlay fixed inset-0 z-50 overflow-y-auto bg-slate-950/85 backdrop-blur-md p-4 md:p-8 flex flex-col items-center">
       
@@ -135,63 +205,20 @@ export default function QuotePreview({ quotation, onClose, settings, customers =
       </div>
 
       {/* Wrapper of A4 pages for print & screen views */}
-      <div className="print-container w-full max-w-4xl space-y-8 no-bg">
-        {(() => {
-          // Calculate how to segment items into pages based on line weights
-          const getRowWeight = (item) => {
-            if (item.isDiscount) return 1.5;
-            if (!item.description) return 1;
-            const lines = item.description.split("\n").length;
-            return Math.max(1, lines);
-          };
-          
-          const pages = [];
-          const allItems = [...quotation.items];
-          
-          // If there's a discount, it acts as an additional row in the table
-          const discountRow = quotation.discount > 0 ? { isDiscount: true, totalPrice: -quotation.discount } : null;
-          const tableRows = discountRow ? [...allItems, discountRow] : allItems;
-          
-          const totalWeight = tableRows.reduce((sum, item) => sum + getRowWeight(item), 0);
-          
-          if (totalWeight <= 5) {
-            // Fits completely on a single page including signatures
-            pages.push(tableRows);
-          } else {
-            // Multi-page document
-            let currentPage = [];
-            let currentWeight = 0;
-            let isFirst = true;
-            
-            for (let i = 0; i < tableRows.length; i++) {
-              const item = tableRows[i];
-              const weight = getRowWeight(item);
-              const maxCapacity = isFirst ? 6 : 9; // First page capacity is smaller due to header/meta
-              
-              if (currentWeight + weight > maxCapacity && currentPage.length > 0) {
-                pages.push(currentPage);
-                currentPage = [item];
-                currentWeight = weight;
-                isFirst = false;
-              } else {
-                currentPage.push(item);
-                currentWeight += weight;
-              }
-            }
-            if (currentPage.length > 0) {
-              pages.push(currentPage);
-            }
-            
-            // If the item itself is so tall it takes the whole page but totalWeight > 5,
-            // we force signatures to render on Page 2
-            if (pages.length === 1) {
-              pages.push([]);
-            }
-          }
-          
-          const totalPages = pages.length;
-
-          return pages.map((pageItems, pageIdx) => {
+      <div 
+        className="print-container w-full max-w-4xl space-y-8 no-bg"
+        style={scale < 1 ? {
+          position: "relative",
+          left: "50%",
+          transform: `translateX(-50%) scale(${scale})`,
+          transformOrigin: "top center",
+          width: "840px",
+          minWidth: "840px",
+          margin: "0 auto",
+          height: `${scale * 1188 * totalPages + (totalPages - 1) * 32 * scale}px`
+        } : {}}
+      >
+        {pages.map((pageItems, pageIdx) => {
             const isFirstPage = pageIdx === 0;
             const isLastPage = pageIdx === totalPages - 1;
             
@@ -204,47 +231,43 @@ export default function QuotePreview({ quotation, onClose, settings, customers =
             return (
               <div 
                 key={pageIdx} 
-                className="print-page bg-white text-black w-full max-w-4xl p-8 md:p-12 shadow-2xl rounded-sm border border-slate-200 font-serif leading-relaxed select-text flex flex-col justify-between"
+                className="print-page bg-white text-black w-full max-w-4xl p-6 md:p-8 shadow-2xl rounded-sm border border-slate-200 font-serif leading-relaxed select-text flex flex-col justify-between"
                 style={{ fontFamily: "'Times New Roman', Times, serif", boxSizing: "border-box" }}
                 data-last-page={isLastPage ? "true" : "false"}
               >
                 <div>
-                  {/* 1. HEADER ELEMENT */}
                   {isFirstPage ? (
-                    /* Standard letterhead header */
-                    <div className="flex flex-col items-center justify-center pb-3">
-                      {/* Framed top center Store Logo */}
-                      <img 
-                        src="/logo.jpeg" 
-                        alt="Sri KP Babu Computers Logo" 
-                        className="h-20 w-44 rounded-xl object-contain bg-white select-none mb-1"
-                        style={{ width: "160px", height: "72px" }}
-                      />
-
-                      {/* Since tag */}
-                      <div className="font-sans font-bold text-[10px] tracking-[4px] uppercase text-slate-700 select-none">
-                        {settings.established}
+                    /* Standard letterhead header (Side-by-side layout) */
+                    <div className="flex flex-row items-center justify-between pb-3 border-b-2 border-slate-800">
+                      {/* Logo and established tag on the left */}
+                      <div className="flex flex-col items-center select-none shrink-0">
+                        <img 
+                          src="/logo.jpeg" 
+                          alt="Sri KP Babu Computers Logo" 
+                          className="h-16 w-36 object-contain bg-white select-none"
+                          style={{ width: "136px", height: "60px" }}
+                        />
+                        <div className="font-sans font-bold text-[8px] tracking-[4px] uppercase text-slate-600 select-none mt-1">
+                          {settings.established}
+                        </div>
                       </div>
 
-                      {/* Company Title */}
-                      <div className="text-center text-blue-900 font-black text-2xl sm:text-3xl tracking-wide uppercase mt-1 print-text-blue font-sans" style={{ fontSize: "21pt", fontWeight: "900" }}>
-                        {settings.storeName}
-                      </div>
-
-                      {/* Store Sub-metadata */}
-                      <div className="text-center font-bold text-xs sm:text-sm text-black mt-1.5 font-sans leading-tight" style={{ fontSize: "10.5pt" }}>
-                        {settings.address}
-                      </div>
-
-                      <div className="text-center font-bold text-xs sm:text-sm text-black mt-0.5 font-sans" style={{ fontSize: "10.5pt" }}>
-                        Ph: {settings.phone}
-                      </div>
-
-                      {/* Authorised showroom Underlined bar */}
-                      <div className="text-center mt-2">
-                        <span className="text-blue-800 font-extrabold border-b-2 border-blue-800 pb-0.5 tracking-wider uppercase text-xs sm:text-sm print-text-blue font-sans" style={{ fontSize: "10.5pt" }}>
-                          {settings.tagline}
-                        </span>
+                      {/* Store Details on the right */}
+                      <div className="flex-1 text-right pl-6 font-sans">
+                        <div className="text-blue-900 font-black tracking-wide uppercase print-text-blue leading-tight" style={{ fontSize: "18pt", fontWeight: "900" }}>
+                          {settings.storeName}
+                        </div>
+                        <div className="font-bold text-black mt-1.5 leading-snug" style={{ fontSize: "9.5pt" }}>
+                          {settings.address}
+                        </div>
+                        <div className="font-bold text-black mt-0.5" style={{ fontSize: "9.5pt" }}>
+                          Ph: {settings.phone}
+                        </div>
+                        <div className="mt-1.5">
+                          <span className="text-blue-800 font-extrabold border-b-2 border-blue-800 pb-0.5 tracking-wider uppercase print-text-blue" style={{ fontSize: "9.5pt" }}>
+                            {settings.tagline}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   ) : (
@@ -269,7 +292,7 @@ export default function QuotePreview({ quotation, onClose, settings, customers =
                   {isFirstPage && (
                     <>
                       {/* QUOTATION title */}
-                      <div className="text-center text-red-600 font-extrabold tracking-[10px] uppercase mt-2 text-lg sm:text-xl print-text-red font-sans border-t border-slate-300 pt-3" style={{ fontSize: "17pt" }}>
+                      <div className="text-center text-red-600 font-extrabold tracking-[10px] uppercase mt-2 text-lg sm:text-xl print-text-red font-sans pt-3" style={{ fontSize: "17pt" }}>
                         QUOTATION
                       </div>
 
@@ -472,7 +495,7 @@ export default function QuotePreview({ quotation, onClose, settings, customers =
                       </p>
 
                       {/* Bottom account info + terms in split layout */}
-                      <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6 font-sans text-[9.5pt] border-t border-slate-350 pt-3">
+                      <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-4 font-sans text-[9pt] border-t border-slate-350 pt-2 page-break-inside-avoid">
                         
                         {/* Left side: Terms and Bank accounts */}
                         <div className="space-y-3">
@@ -500,14 +523,31 @@ export default function QuotePreview({ quotation, onClose, settings, customers =
                         </div>
 
                         {/* Right side: Signature blocks */}
-                        <div className="flex flex-col items-end text-right py-2">
+                        <div className="flex flex-col items-end text-right py-2 relative">
                           <div className="space-y-1">
                             <div className="font-bold text-slate-800">Your faithfully,</div>
                             <div className="font-extrabold uppercase text-[10pt] text-black">For {settings.storeName}</div>
                           </div>
                           
+                          {/* Absolute Overlapping Stamp and Signature */}
+                          <div className="relative w-56 h-16 mt-2 select-none pointer-events-none">
+                            {/* Stamp Image (positioned left-ish, slightly rotated for realism) */}
+                            <img 
+                              src="/STAMP.png" 
+                              alt="Store Stamp" 
+                              className="absolute left-4 -top-8 w-24 h-24 object-contain opacity-85" 
+                              style={{ transform: "rotate(-8deg)" }}
+                            />
+                            {/* Signature Image (positioned right-ish, overlapping the stamp) */}
+                            <img 
+                              src="/Signature.png" 
+                              alt="Authorized Signature" 
+                              className="absolute right-6 top-2 w-28 h-12 object-contain" 
+                            />
+                          </div>
+
                           {/* Fixed signing gap — does not stretch to full column height */}
-                          <div className="w-56 font-extrabold border-t border-slate-400 text-center tracking-wider text-black select-none mt-14 pt-2" style={{ borderTop: "1px solid #555555" }}>
+                          <div className="w-56 font-extrabold border-t border-slate-400 text-center tracking-wider text-black select-none pt-2" style={{ borderTop: "1px solid #555555" }}>
                             Authorized Signature
                           </div>
                         </div>
@@ -527,11 +567,13 @@ export default function QuotePreview({ quotation, onClose, settings, customers =
                     </div>
                     <div className="text-slate-400">SRI KP BABU COMPUTERS</div>
                   </div>
+                  <div className="text-center font-extrabold text-[8pt] text-blue-900 font-sans mt-1.5 tracking-wider uppercase select-none print-text-blue">
+                    HP Authorized Showroom | Custom PC Builds | Gaming Solutions
+                  </div>
                 </div>
               </div>
             );
-          });
-        })()}
+        })}
       </div>
     </div>
   );

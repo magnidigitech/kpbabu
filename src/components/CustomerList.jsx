@@ -10,7 +10,8 @@ import {
   MapPin, 
   FileText,
   FileCheck,
-  Briefcase
+  Briefcase,
+  X
 } from "lucide-react";
 
 export default function CustomerList({ 
@@ -24,6 +25,7 @@ export default function CustomerList({
 }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCustomerForHistory, setSelectedCustomerForHistory] = useState(null);
+  const [showMobileHistory, setShowMobileHistory] = useState(false);
   
   // Slide drawers states
   const [showAddForm, setShowAddForm] = useState(false);
@@ -146,7 +148,10 @@ export default function CustomerList({
                 return (
                   <div 
                     key={c.id}
-                    onClick={() => setSelectedCustomerForHistory(c)}
+                    onClick={() => {
+                      setSelectedCustomerForHistory(c);
+                      setShowMobileHistory(true);
+                    }}
                     className={`p-4 rounded-2xl border transition-all duration-200 cursor-pointer flex flex-col justify-between space-y-3 bg-white ${
                       isSelected 
                         ? "bg-brand-blue-dark/5 border-brand-blue-dark/30 shadow-sm" 
@@ -214,7 +219,7 @@ export default function CustomerList({
         </div>
 
         {/* Selected Customer Invoice History panel */}
-        <div className="glass-card rounded-2xl p-5 flex flex-col justify-between h-full min-h-[400px] bg-white">
+        <div className="hidden lg:flex glass-card rounded-2xl p-5 flex-col justify-between h-full min-h-[400px] bg-white">
           <div>
             <div className="border-b border-slate-100 pb-3 mb-4">
               <h3 className="text-sm font-extrabold text-slate-950 uppercase tracking-wider text-[11px] flex items-center space-x-2">
@@ -374,6 +379,88 @@ export default function CustomerList({
                   <span>{editingCustomer ? "Save Changes" : "Save Customer"}</span>
                 </button>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mobile Quotation History Modal */}
+      {showMobileHistory && selectedCustomerForHistory && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm lg:hidden animate-fadeIn">
+          <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] animate-scaleUp">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 p-5">
+              <div className="flex items-center space-x-2">
+                <Briefcase className="h-4.5 w-4.5 text-brand-blue-dark" />
+                <h3 className="text-sm font-extrabold text-slate-950 uppercase tracking-wider text-[11px]">
+                  Quotation History
+                </h3>
+              </div>
+              <button 
+                onClick={() => setShowMobileHistory(false)}
+                className="text-slate-400 hover:text-slate-700 p-1 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+              >
+                <X className="h-4.5 w-4.5" />
+              </button>
+            </div>
+
+            {/* Content Area */}
+            <div className="p-5 overflow-y-auto space-y-4 flex-1">
+              <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl">
+                <h4 className="text-xs font-bold text-slate-900">{selectedCustomerForHistory.name}</h4>
+                <p className="text-[10px] text-slate-500 mt-1 font-semibold">Phone: {selectedCustomerForHistory.phone}</p>
+              </div>
+
+              <div className="space-y-3">
+                {getQuotationHistory(selectedCustomerForHistory.id).length === 0 ? (
+                  <div className="text-center py-10 text-xs text-slate-400 font-bold bg-slate-50 border border-slate-100 rounded-xl">
+                    This customer has no past commercial quotations.
+                  </div>
+                ) : (
+                  getQuotationHistory(selectedCustomerForHistory.id).map(q => (
+                    <div 
+                      key={q.id}
+                      onClick={() => {
+                        onSelectQuotation(q);
+                        setShowMobileHistory(false);
+                      }}
+                      className="p-3 bg-slate-50 hover:bg-slate-100 border border-slate-100 rounded-xl flex items-center justify-between group cursor-pointer transition-all"
+                    >
+                      <div>
+                        <p className="text-xs font-bold text-slate-800 group-hover:text-brand-blue transition-colors">
+                          {q.quotationNumber}
+                        </p>
+                        <p className="text-[9px] text-slate-400 font-bold mt-0.5">
+                          {new Date(q.date).toLocaleDateString("en-IN")}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs font-extrabold text-slate-900">{formatCurrency(q.grandTotal)}</p>
+                        <span className={`inline-block text-[8px] font-bold px-1.5 py-0.5 rounded-full mt-1 border uppercase tracking-wider ${
+                          q.status === "Approved" ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-amber-50 text-amber-600 border-amber-100"
+                        }`}>
+                          {q.status}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Footer Action Button */}
+            <div className="p-5 border-t border-slate-100 bg-slate-50/50">
+              <button 
+                onClick={() => {
+                  window.localStorage.setItem("kpb_preselected_customer", JSON.stringify(selectedCustomerForHistory));
+                  setActiveTab("builder");
+                  setShowMobileHistory(false);
+                }}
+                className="w-full flex items-center justify-center space-x-1.5 bg-gradient-to-r from-brand-blue-dark to-brand-blue hover:from-brand-blue hover:to-brand-blue-dark text-white font-bold py-2.5 rounded-xl shadow-md text-xs cursor-pointer"
+              >
+                <Plus className="h-4 w-4" />
+                <span>Create Quote for Client</span>
+              </button>
             </div>
           </div>
         </div>

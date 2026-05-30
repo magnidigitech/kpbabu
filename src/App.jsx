@@ -45,6 +45,26 @@ export default function App() {
   const [loginForm, setLoginForm] = useState({ username: "", password: "", role: "admin" });
   const [loginError, setLoginError] = useState("");
 
+  // Toast & Confirmation Dialog States
+  const [toast, setToast] = useState(null); // { message, type }
+  const [confirmDialog, setConfirmDialog] = useState(null); // { title, message, requireInput, expectedInputs, inputPlaceholder, onConfirm, onCancel }
+
+  const showToast = (message, type = "success") => {
+    setToast({ message, type });
+  };
+
+  const showConfirm = (options) => {
+    setConfirmDialog(options);
+  };
+
+  // Toast Auto-Dismiss
+  useEffect(() => {
+    if (!toast) return;
+    const duration = toast.type === "error" ? 6000 : 4000;
+    const timer = setTimeout(() => setToast(null), duration);
+    return () => clearTimeout(timer);
+  }, [toast]);
+
   // Initialize DB and load states on mount
   useEffect(() => {
     async function loadData() {
@@ -58,10 +78,23 @@ export default function App() {
 
         // Resilient DB Settings load
         if (settingsRes && !settingsRes.error) {
+          if (settingsRes.tagline === "HP ASUS ACER AUTHORISED SHOW ROOM" || settingsRes.tagline.includes("ASUS")) {
+            settingsRes.tagline = "HP AUTHORISED SHOWROOM";
+            fetch('/api/settings', {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(settingsRes)
+            }).catch(e => console.error("Error updating settings:", e));
+          }
           setSettings(settingsRes);
         } else {
           console.warn("DB settings failed, falling back to local/default.");
-          setSettings(getLocalStorageData("kpb_settings", DEFAULT_SETTINGS));
+          const fallback = getLocalStorageData("kpb_settings", DEFAULT_SETTINGS);
+          if (fallback.tagline === "HP ASUS ACER AUTHORISED SHOW ROOM" || fallback.tagline.includes("ASUS")) {
+            fallback.tagline = "HP AUTHORISED SHOWROOM";
+            setLocalStorageData("kpb_settings", fallback);
+          }
+          setSettings(fallback);
         }
 
         // Resilient DB Products load
@@ -108,7 +141,12 @@ export default function App() {
         setIsInitialized(true);
       } catch (error) {
         console.error("Error loading fullstack database, using complete client fallbacks:", error);
-        setSettings(getLocalStorageData("kpb_settings", DEFAULT_SETTINGS));
+        const fallback = getLocalStorageData("kpb_settings", DEFAULT_SETTINGS);
+        if (fallback.tagline === "HP ASUS ACER AUTHORISED SHOW ROOM" || fallback.tagline.includes("ASUS")) {
+          fallback.tagline = "HP AUTHORISED SHOWROOM";
+          setLocalStorageData("kpb_settings", fallback);
+        }
+        setSettings(fallback);
         setProducts(getLocalStorageData("kpb_products", []));
         setCustomers(getLocalStorageData("kpb_customers", []));
         setQuotations(getLocalStorageData("kpb_quotations", []));
@@ -156,13 +194,14 @@ export default function App() {
       });
       const data = await res.json();
       if (data && data.error) {
-        alert(`Failed to save settings: ${data.error}`);
+        showToast(`Failed to save settings: ${data.error}`, "error");
         return;
       }
       setSettings(data);
+      showToast("Settings saved successfully!", "success");
     } catch (error) {
       console.error("Error saving settings:", error);
-      alert("Failed to save settings.");
+      showToast("Failed to save settings.", "error");
     }
   };
 
@@ -181,10 +220,11 @@ export default function App() {
         });
         const data = await res.json();
         if (data && data.error) {
-          alert(`Failed to add products: ${data.error}`);
+          showToast(`Failed to add products: ${data.error}`, "error");
           return;
         }
         setProducts([...products, ...data]);
+        showToast("Products added successfully!", "success");
       } else {
         const payload = {
           id: `prod-${Date.now()}`,
@@ -197,14 +237,15 @@ export default function App() {
         });
         const data = await res.json();
         if (data && data.error) {
-          alert(`Failed to add product: ${data.error}`);
+          showToast(`Failed to add product: ${data.error}`, "error");
           return;
         }
         setProducts([...products, data]);
+        showToast("Product added successfully!", "success");
       }
     } catch (error) {
       console.error("Error adding product:", error);
-      alert("Failed to add product.");
+      showToast("Failed to add product.", "error");
     }
   };
 
@@ -219,31 +260,43 @@ export default function App() {
       });
       const data = await res.json();
       if (data && data.error) {
-        alert(`Failed to update product: ${data.error}`);
+        showToast(`Failed to update product: ${data.error}`, "error");
         return;
       }
       setProducts(products.map(p => p.id === id ? data : p));
+      showToast("Product updated successfully!", "success");
     } catch (error) {
       console.error("Error updating product:", error);
-      alert("Failed to update product.");
+      showToast("Failed to update product.", "error");
     }
   };
 
   const handleDeleteProduct = async (id) => {
-    if (window.confirm("Are you sure you want to delete this product?")) {
-      try {
-        const res = await fetch(`/api/products/${id}`, { method: 'DELETE' });
-        const data = await res.json();
-        if (data && data.error) {
-          alert(`Failed to delete product: ${data.error}`);
-          return;
+    const p = products.find(prod => prod.id === id);
+    if (!p) return;
+
+    showConfirm({
+      title: "Delete Product Catalog Item",
+      message: `Are you sure you want to permanently delete product "${p.name}"? This action cannot be undone.`,
+      requireInput: true,
+      expectedInputs: [p.name, p.name],
+      inputPlaceholder: `Type "${p.name}" here to authorize...`,
+      onConfirm: async () => {
+        try {
+          const res = await fetch(`/api/products/${id}`, { method: 'DELETE' });
+          const data = await res.json();
+          if (data && data.error) {
+            showToast(`Failed to delete product: ${data.error}`, "error");
+            return;
+          }
+          setProducts(products.filter(p => p.id !== id));
+          showToast("Product deleted successfully!", "success");
+        } catch (error) {
+          console.error("Error deleting product:", error);
+          showToast("Failed to delete product.", "error");
         }
-        setProducts(products.filter(p => p.id !== id));
-      } catch (error) {
-        console.error("Error deleting product:", error);
-        alert("Failed to delete product.");
       }
-    }
+    });
   };
 
   // CUSTOMER MUTATORS (CRUD)
@@ -260,14 +313,15 @@ export default function App() {
       });
       const data = await res.json();
       if (data && data.error) {
-        alert(`Failed to add customer: ${data.error}`);
+        showToast(`Failed to add customer: ${data.error}`, "error");
         return null;
       }
       setCustomers([...customers, data]);
+      showToast("Customer added successfully!", "success");
       return data;
     } catch (error) {
       console.error("Error adding customer:", error);
-      alert("Failed to add customer.");
+      showToast("Failed to add customer.", "error");
       return null;
     }
   };
@@ -283,31 +337,43 @@ export default function App() {
       });
       const data = await res.json();
       if (data && data.error) {
-        alert(`Failed to update customer: ${data.error}`);
+        showToast(`Failed to update customer: ${data.error}`, "error");
         return;
       }
       setCustomers(customers.map(c => c.id === id ? data : c));
+      showToast("Customer updated successfully!", "success");
     } catch (error) {
       console.error("Error updating customer:", error);
-      alert("Failed to update customer.");
+      showToast("Failed to update customer.", "error");
     }
   };
 
   const handleDeleteCustomer = async (id) => {
-    if (window.confirm("Are you sure you want to delete this customer record?")) {
-      try {
-        const res = await fetch(`/api/customers/${id}`, { method: 'DELETE' });
-        const data = await res.json();
-        if (data && data.error) {
-          alert(`Failed to delete customer: ${data.error}`);
-          return;
+    const c = customers.find(item => item.id === id);
+    if (!c) return;
+
+    showConfirm({
+      title: "Delete Customer Record",
+      message: `Are you sure you want to permanently delete customer "${c.name}"? This action cannot be undone.`,
+      requireInput: true,
+      expectedInputs: [c.name, c.name],
+      inputPlaceholder: `Type "${c.name}" here to authorize...`,
+      onConfirm: async () => {
+        try {
+          const res = await fetch(`/api/customers/${id}`, { method: 'DELETE' });
+          const data = await res.json();
+          if (data && data.error) {
+            showToast(`Failed to delete customer: ${data.error}`, "error");
+            return;
+          }
+          setCustomers(customers.filter(x => x.id !== id));
+          showToast("Customer record deleted successfully!", "success");
+        } catch (error) {
+          console.error("Error deleting customer:", error);
+          showToast("Failed to delete customer.", "error");
         }
-        setCustomers(customers.filter(c => c.id !== id));
-      } catch (error) {
-        console.error("Error deleting customer:", error);
-        alert("Failed to delete customer.");
       }
-    }
+    });
   };
 
   // QUOTATION MUTATORS (Create, Edit, Duplicate, Delete)
@@ -331,7 +397,7 @@ export default function App() {
       });
       const savedData = await res.json();
       if (savedData && savedData.error) {
-        alert(`Failed to save quotation record: ${savedData.error}`);
+        showToast(`Failed to save quotation record: ${savedData.error}`, "error");
         return;
       }
 
@@ -342,6 +408,7 @@ export default function App() {
         updated = [savedData, ...quotations];
       }
       setQuotations(updated);
+      showToast("Quotation saved successfully!", "success");
       
       // Stock sync: if transitioning to Approved, sync products stock
       if (savedData.status === "Approved" && oldStatus !== "Approved") {
@@ -350,7 +417,7 @@ export default function App() {
       }
     } catch (error) {
       console.error("Error saving quotation:", error);
-      alert("Failed to save quotation record.");
+      showToast("Failed to save quotation record.", "error");
     }
   };
 
@@ -391,15 +458,54 @@ export default function App() {
   };
 
   const handleDeleteQuotation = async (id) => {
-    if (window.confirm("Are you sure you want to delete this quotation entry?")) {
-      try {
-        await fetch(`/api/quotations/${id}`, { method: 'DELETE' });
-        setQuotations(quotations.filter(q => q.id !== id));
-      } catch (error) {
-        console.error("Error deleting quotation:", error);
-        alert("Failed to delete quotation record.");
+    const q = quotations.find(item => item.id === id);
+    if (!q) return;
+
+    showConfirm({
+      title: "Confirm Deletion",
+      message: `Are you sure you want to permanently delete quotation "${q.quotationNumber}"? This action is irreversible.`,
+      requireInput: true,
+      expectedInputs: [q.quotationNumber, q.quotationNumber],
+      inputPlaceholder: `Type "${q.quotationNumber}" here to confirm...`,
+      onConfirm: async () => {
+        try {
+          await fetch(`/api/quotations/${id}`, { method: 'DELETE' });
+          setQuotations(quotations.filter(x => x.id !== id));
+          showToast("Quotation deleted successfully!", "success");
+        } catch (error) {
+          console.error("Error deleting quotation:", error);
+          showToast("Failed to delete quotation record.", "error");
+        }
       }
+    });
+  };
+
+  const handleUpdateQuotationStatus = async (id, newStatus) => {
+    try {
+      const res = await fetch(`/api/quotations/${id}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus })
+      });
+      const data = await res.json();
+      if (data && data.error) {
+        showToast(`Failed to update status: ${data.error}`, "error");
+        return;
+      }
+      setQuotations(quotations.map(q => q.id === id ? data : q));
+      showToast(`Quotation status updated to "${newStatus}"!`, "success");
+    } catch (error) {
+      console.error("Error updating status:", error);
+      showToast("Failed to update quotation status.", "error");
     }
+  };
+
+  const [statusModalQuotation, setStatusModalQuotation] = useState(null);
+  const [selectedStatus, setSelectedStatus] = useState("Pending");
+
+  const handleOpenStatusModal = (q) => {
+    setStatusModalQuotation(q);
+    setSelectedStatus(q.status);
   };
 
   // Render correct panel
@@ -413,6 +519,8 @@ export default function App() {
             onSelectQuotation={setSelectedQuotation}
             onDuplicateQuotation={handleDuplicateQuotation}
             onDeleteQuotation={handleDeleteQuotation}
+            onUpdateQuotationStatus={handleUpdateQuotationStatus}
+            onOpenStatusModal={handleOpenStatusModal}
           />
         );
       case "builder":
@@ -425,6 +533,8 @@ export default function App() {
             setActiveTab={setActiveTab}
             editingQuotationDraft={editingQuotationDraft}
             clearEditingDraft={() => setEditingQuotationDraft(null)}
+            showToast={showToast}
+            showConfirm={showConfirm}
           />
         );
       case "history":
@@ -435,6 +545,8 @@ export default function App() {
             onSelectQuotation={setSelectedQuotation}
             onDuplicateQuotation={handleDuplicateQuotation}
             onDeleteQuotation={handleDeleteQuotation}
+            onUpdateQuotationStatus={handleUpdateQuotationStatus}
+            onOpenStatusModal={handleOpenStatusModal}
             settings={settings}
           />
         );
@@ -457,10 +569,10 @@ export default function App() {
             settings={settings}
             onUpdateSettings={saveSettings}
             onResetDatabase={() => {
-              alert("Your database is securely hosted on your Hostinger VPS PostgreSQL database. The local browser cache has been reset.");
               window.localStorage.removeItem("kpb_session_user");
-              window.location.reload();
             }}
+            showConfirm={showConfirm}
+            showToast={showToast}
           />
         );
       default:
@@ -630,6 +742,255 @@ export default function App() {
           settings={settings}
           customers={customers}
         />
+      )}
+
+      {/* Premium Custom Toast Notification */}
+      {toast && (
+        <div className="fixed bottom-24 md:bottom-8 left-1/2 z-[9999] w-[calc(100%-2rem)] max-w-sm bg-white/85 backdrop-blur-xl border border-slate-200 shadow-2xl rounded-2xl p-4 flex items-center space-x-3.5 animate-slideUp">
+          <div className={`h-9 w-9 rounded-xl flex items-center justify-center shrink-0 shadow-sm ${
+            toast.type === "success" 
+              ? "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20" 
+              : toast.type === "error"
+              ? "bg-rose-500/10 text-rose-600 border border-rose-500/20"
+              : "bg-amber-500/10 text-amber-600 border border-amber-500/20"
+          }`}>
+            {toast.type === "success" ? (
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            ) : (
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-black text-slate-900 uppercase tracking-wide">
+              {toast.type === "success" ? "Success" : toast.type === "error" ? "System Error" : "Attention"}
+            </p>
+            <p className="text-[11px] text-slate-500 font-bold mt-0.5 leading-snug">{toast.message}</p>
+          </div>
+          <button onClick={() => setToast(null)} className="text-slate-400 hover:text-slate-600 transition-colors shrink-0 cursor-pointer">
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
+
+      {/* Premium Custom Confirm Dialog Modal */}
+      {confirmDialog && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-fadeIn">
+          <div className="w-full max-w-md bg-white border border-slate-200 shadow-2xl rounded-3xl overflow-hidden p-6 space-y-4 animate-scaleUp">
+            <div className="flex items-center space-x-3 text-rose-600">
+              <div className="h-10 w-10 rounded-2xl bg-rose-50 border border-rose-100 flex items-center justify-center shadow-sm shrink-0">
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </div>
+              <h3 className="text-sm font-extrabold uppercase tracking-wider text-slate-950">{confirmDialog.title || "Confirm Action"}</h3>
+            </div>
+
+            <p className="text-xs text-slate-500 font-bold leading-relaxed">{confirmDialog.message}</p>
+
+            {confirmDialog.requireInput && (
+              <div className="space-y-1.5 animate-fadeIn">
+                <label className="block text-[10px] font-extrabold uppercase tracking-widest text-slate-400">
+                  Type Confirmation Phrase to Authorize
+                </label>
+                <input
+                  type="text"
+                  id="dialog-confirm-input"
+                  placeholder={confirmDialog.inputPlaceholder || "Type exactly to confirm..."}
+                  className="glass-input px-4 py-2.5 rounded-xl text-xs w-full font-bold focus:border-rose-500 focus:ring-1 focus:ring-rose-500/20 shadow-sm"
+                  onChange={(e) => {
+                    const typed = e.target.value.trim().toLowerCase();
+                    const matched = confirmDialog.expectedInputs.some(expected => 
+                      expected.trim().toLowerCase() === typed
+                    );
+                    const btn = document.getElementById("dialog-confirm-btn");
+                    if (btn) {
+                      if (matched) {
+                        btn.removeAttribute("disabled");
+                        btn.classList.remove("opacity-50", "cursor-not-allowed");
+                        btn.classList.add("hover:from-rose-600", "hover:to-rose-700");
+                      } else {
+                        btn.setAttribute("disabled", "true");
+                        btn.classList.add("opacity-50", "cursor-not-allowed");
+                        btn.classList.remove("hover:from-rose-600", "hover:to-rose-700");
+                      }
+                    }
+                  }}
+                />
+                <p className="text-[10px] text-slate-400 font-semibold leading-relaxed">
+                  Required: <span className="font-extrabold text-slate-700 select-all">"{confirmDialog.expectedInputs[0]}"</span>
+                  {confirmDialog.expectedInputs[0] !== confirmDialog.expectedInputs[1] && (
+                    <> or <span className="font-extrabold text-slate-700 select-all">"{confirmDialog.expectedInputs[1]}"</span></>
+                  )}
+                </p>
+              </div>
+            )}
+
+            <div className="flex items-center space-x-3 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => {
+                  if (confirmDialog.onCancel) confirmDialog.onCancel();
+                  setConfirmDialog(null);
+                }}
+                className="flex-1 py-2.5 rounded-xl text-xs font-bold border border-slate-200 hover:bg-slate-50 text-slate-500 transition-colors cursor-pointer text-center"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                id="dialog-confirm-btn"
+                disabled={confirmDialog.requireInput}
+                onClick={() => {
+                  confirmDialog.onConfirm();
+                  setConfirmDialog(null);
+                }}
+                className={`flex-1 py-2.5 rounded-xl text-xs font-extrabold text-white bg-gradient-to-r from-rose-500 to-rose-600 shadow-md shadow-rose-900/10 cursor-pointer transition-all ${
+                  confirmDialog.requireInput ? "opacity-50 cursor-not-allowed" : "hover:from-rose-600 hover:to-rose-700"
+                }`}
+              >
+                Confirm Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Premium Custom Status Update Modal */}
+      {statusModalQuotation && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-fadeIn">
+          <div className="w-full max-w-md bg-white border border-slate-200 shadow-2xl rounded-3xl overflow-hidden p-6 space-y-4 animate-scaleUp">
+            
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div>
+                <h3 className="text-sm font-extrabold uppercase tracking-wider text-slate-950">Update Quotation Status</h3>
+                <p className="text-[10px] text-slate-400 font-semibold mt-0.5">Change state of the selected document entry</p>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => setStatusModalQuotation(null)}
+                className="text-slate-400 hover:text-slate-600 transition-colors p-1 cursor-pointer"
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Content: Show Quotation Info */}
+            <div className="bg-slate-50 border border-slate-150 rounded-2xl p-4 space-y-2">
+              <div className="flex justify-between text-xs">
+                <span className="text-slate-400 font-bold">Quotation Number</span>
+                <span className="text-slate-900 font-extrabold">{statusModalQuotation.quotationNumber}</span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-slate-400 font-bold">Customer Name</span>
+                <span className="text-slate-900 font-black">{statusModalQuotation.customerName}</span>
+              </div>
+            </div>
+
+            {/* Radio Card Buttons Selection */}
+            <div className="space-y-2.5">
+              <label className="block text-[10px] font-extrabold uppercase tracking-widest text-slate-400">
+                Select Active Status Offer
+              </label>
+
+              {/* Option: Pending */}
+              <div 
+                className={`flex items-start space-x-3.5 p-3.5 rounded-xl border-2 transition-all cursor-pointer ${
+                  selectedStatus === "Pending" 
+                    ? "border-amber-505 bg-amber-50/30 text-amber-900 shadow-sm border-amber-500" 
+                    : "border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700"
+                }`} 
+                onClick={() => setSelectedStatus("Pending")}
+              >
+                <div className={`h-4.5 w-4.5 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 transition-all ${
+                  selectedStatus === "Pending" ? "border-amber-500 bg-white" : "border-slate-300 bg-white"
+                }`}>
+                  {selectedStatus === "Pending" && <div className="h-2 w-2 rounded-full bg-amber-500" />}
+                </div>
+                <div className="text-left">
+                  <span className="text-xs font-black uppercase tracking-wider block">Pending Status</span>
+                  <span className="text-[10px] text-slate-500 font-semibold block mt-0.5 leading-snug">
+                    Draft quote under active client negotiation, review and verification.
+                  </span>
+                </div>
+              </div>
+
+              {/* Option: Approved */}
+              <div 
+                className={`flex items-start space-x-3.5 p-3.5 rounded-xl border-2 transition-all cursor-pointer ${
+                  selectedStatus === "Approved" 
+                    ? "border-emerald-505 bg-emerald-50/30 text-emerald-900 shadow-sm border-emerald-500" 
+                    : "border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700"
+                }`} 
+                onClick={() => setSelectedStatus("Approved")}
+              >
+                <div className={`h-4.5 w-4.5 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 transition-all ${
+                  selectedStatus === "Approved" ? "border-emerald-500 bg-white" : "border-slate-300 bg-white"
+                }`}>
+                  {selectedStatus === "Approved" && <div className="h-2 w-2 rounded-full bg-emerald-500" />}
+                </div>
+                <div className="text-left">
+                  <span className="text-xs font-black uppercase tracking-wider block">Approved Status</span>
+                  <span className="text-[10px] text-slate-500 font-semibold block mt-0.5 leading-snug">
+                    Finalized commercial offer. Synchronizes product stock and locks prices.
+                  </span>
+                </div>
+              </div>
+
+              {/* Option: Expired */}
+              <div 
+                className={`flex items-start space-x-3.5 p-3.5 rounded-xl border-2 transition-all cursor-pointer ${
+                  selectedStatus === "Expired" 
+                    ? "border-rose-550 bg-rose-50/30 text-rose-900 shadow-sm border-rose-500" 
+                    : "border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700"
+                }`} 
+                onClick={() => setSelectedStatus("Expired")}
+              >
+                <div className={`h-4.5 w-4.5 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 transition-all ${
+                  selectedStatus === "Expired" ? "border-rose-500 bg-white" : "border-slate-300 bg-white"
+                }`}>
+                  {selectedStatus === "Expired" && <div className="h-2 w-2 rounded-full bg-rose-500" />}
+                </div>
+                <div className="text-left">
+                  <span className="text-xs font-black uppercase tracking-wider block">Expired Status</span>
+                  <span className="text-[10px] text-slate-500 font-semibold block mt-0.5 leading-snug">
+                    Quotation validity period has elapsed. Duplicate to re-issue new terms.
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center space-x-3 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setStatusModalQuotation(null)}
+                className="flex-1 py-2.5 rounded-xl text-xs font-bold border border-slate-200 hover:bg-slate-50 text-slate-500 transition-colors cursor-pointer text-center"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  handleUpdateQuotationStatus(statusModalQuotation.id, selectedStatus);
+                  setStatusModalQuotation(null);
+                }}
+                className="flex-1 py-2.5 rounded-xl text-xs font-extrabold text-white bg-gradient-to-r from-brand-blue-dark to-brand-blue shadow-md shadow-blue-900/10 cursor-pointer text-center hover:from-brand-blue hover:to-brand-blue-dark transition-all"
+              >
+                Save Changes
+              </button>
+            </div>
+
+          </div>
+        </div>
       )}
     </div>
   );

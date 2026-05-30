@@ -40,7 +40,7 @@ const pool = new Pool({
 // Seed Data for Auto-Migration
 const DEFAULT_SETTINGS = {
   storeName: "SRI KP BABU COMPUTER STATIONERYMART",
-  tagline: "HP ASUS ACER AUTHORISED SHOW ROOM",
+  tagline: "HP AUTHORISED SHOWROOM",
   established: "SINCE 1995",
   address: "H.O: Near Sai Baba Temple, 3/7 Brodipet, Opp. AXIS BANK, Guntur - 522 002.",
   phone: "+91 9597553232, 9951644777",
@@ -163,6 +163,14 @@ async function runMigrations(client) {
     JSON.stringify(DEFAULT_SETTINGS.terms),
     DEFAULT_SETTINGS.whatsappTemplate
   ]);
+
+  // Migrate existing settings if outdated
+  console.log("Migrating database settings if outdated...");
+  await client.query(`
+    UPDATE settings 
+    SET "tagline" = 'HP AUTHORISED SHOWROOM' 
+    WHERE id = 'default' AND ("tagline" = 'HP ASUS ACER AUTHORISED SHOW ROOM' OR "tagline" LIKE '%ASUS%')
+  `);
 
   // Seed Products (Unconditional ON CONFLICT DO NOTHING)
   console.log("Seeding initial products if needed...");
@@ -508,6 +516,54 @@ app.post('/api/quotations', async (req, res) => {
     await client.query('ROLLBACK');
     console.error(err);
     res.status(500).json({ error: 'Failed to save quotation record' });
+  } finally {
+    client.release();
+  }
+});
+
+app.put('/api/quotations/:id/status', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!['Pending', 'Approved', 'Expired'].includes(status)) {
+      return res.status(400).json({ error: 'Invalid status value' });
+    }
+
+    // Check if quotation already exists
+    const exists = await client.query('SELECT status, items FROM quotations WHERE "id" = $1', [id]);
+    if (exists.rows.length === 0) {
+      return res.status(404).json({ error: 'Quotation not found' });
+    }
+
+    const oldStatus = exists.rows[0].status;
+    const items = typeof exists.rows[0].items === 'string' ? JSON.parse(exists.rows[0].items) : exists.rows[0].items;
+
+    const result = await client.query(`
+      UPDATE quotations SET "status" = $1 WHERE "id" = $2 RETURNING *
+    `, [status, id]);
+
+    // Trigger: If status changed from something else to "Approved", deduct stock levels
+    if (status === 'Approved' && oldStatus !== 'Approved') {
+      if (Array.isArray(items)) {
+        for (const item of items) {
+          if (item.productId && item.productId !== 'custom-write-in') {
+            await client.query(`
+              UPDATE products SET stock = GREATEST(0, stock - $1) WHERE id = $2
+            `, [item.qty, item.productId]);
+          }
+        }
+      }
+    }
+
+    await client.query('COMMIT');
+    res.json(result.rows[0]);
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error(err);
+    res.status(500).json({ error: 'Failed to update quotation status' });
   } finally {
     client.release();
   }

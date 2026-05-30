@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from "react";
-import { 
-  Users, 
-  ShoppingBag, 
-  Plus, 
-  Trash2, 
-  Cpu, 
-  Percent, 
-  IndianRupee, 
-  Save, 
+import {
+  Users,
+  ShoppingBag,
+  Plus,
+  Trash2,
+  Cpu,
+  Percent,
+  IndianRupee,
+  Save,
   ArrowLeft,
   ChevronDown,
   ChevronUp,
@@ -16,12 +16,12 @@ import {
 } from "lucide-react";
 
 // Reusable keyboard-searchable autocomplete selector with click outside
-function SearchableDropdown({ 
-  label, 
-  placeholder, 
-  list, 
-  selectedValue, 
-  onSelect 
+function SearchableDropdown({
+  label,
+  placeholder,
+  list,
+  selectedValue,
+  onSelect
 }) {
   const [search, setSearch] = useState("");
   const [isOpen, setIsOpen] = useState(false);
@@ -71,7 +71,7 @@ function SearchableDropdown({
     const q = search.toLowerCase().trim();
     if (q === "") return true;
     if (q === "-- custom write-in --") return true;
-    
+
     // Check if search text matches the selected item exactly
     if (selectedValue !== "" && selectedValue !== "custom") {
       const currentSelected = list.find(x => x.id === selectedValue);
@@ -86,7 +86,7 @@ function SearchableDropdown({
     <div ref={containerRef} className="space-y-1.5 relative searchable-dropdown-container">
       <label className="block text-[11px] font-bold text-slate-500">{label}</label>
       <div className="relative">
-        <input 
+        <input
           type="text"
           placeholder={placeholder}
           value={search}
@@ -145,22 +145,24 @@ function SearchableDropdown({
   );
 }
 
-export default function QuoteBuilder({ 
-  customers, 
-  settings, 
+export default function QuoteBuilder({
+  customers,
+  settings,
   quotations = [],
-  onSaveQuotation, 
+  onSaveQuotation,
   setActiveTab,
   editingQuotationDraft,
-  clearEditingDraft
+  clearEditingDraft,
+  showToast,
+  showConfirm
 }) {
-  
+
   // Core Quote Builder States
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
   const [customerSearchQuery, setCustomerSearchQuery] = useState("");
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
   const customerContainerRef = React.useRef(null);
-  
+
   const [quoteNumber, setQuoteNumber] = useState("");
   const [quoteDate, setQuoteDate] = useState(new Date().toISOString().split("T")[0]);
   const [addedItems, setAddedItems] = useState([]);
@@ -233,7 +235,7 @@ export default function QuoteBuilder({
 
       // Generate the sequential date prefix KPB-DDMMYY-XX pattern
       const loadedQuotations = quotations || [];
-      
+
       const generateNewQuoteNumber = (dateStr) => {
         const d = dateStr ? new Date(dateStr) : new Date();
         const DD = String(d.getDate()).padStart(2, "0");
@@ -312,54 +314,56 @@ export default function QuoteBuilder({
   };
 
   const handleClearBuilder = () => {
-    if (window.confirm("Clear all quotation draft fields?")) {
-      setSelectedCustomerId("");
-      setCustomerSearchQuery("");
-      setAddedItems([]);
-      setDiscountValue(0);
-      
-      const loadedQuotations = quotations || [];
-      const generateNewQuoteNumber = (dateStr) => {
-        const d = dateStr ? new Date(dateStr) : new Date();
-        const DD = String(d.getDate()).padStart(2, "0");
-        const MM = String(d.getMonth() + 1).padStart(2, "0");
-        const YY = String(d.getFullYear()).slice(-2);
-        const datePrefix = `KPB-${DD}${MM}${YY}-`;
-        const matchingQuotes = loadedQuotations.filter(q => q.quotationNumber && q.quotationNumber.startsWith(datePrefix));
-        let nextSeq = 1;
-        if (matchingQuotes.length > 0) {
-          const suffixes = matchingQuotes.map(q => {
-            const parts = q.quotationNumber.split("-");
-            const suffix = parts[parts.length - 1];
-            const num = parseInt(suffix, 10);
-            return isNaN(num) ? 0 : num;
-          });
-          nextSeq = Math.max(...suffixes, 0) + 1;
-        }
-        const XX = String(nextSeq).padStart(2, "0");
-        return `${datePrefix}${XX}`;
-      };
+    showConfirm({
+      title: "Clear Quotation Draft",
+      message: "Are you sure you want to clear all current quotation draft fields and start fresh?",
+      onConfirm: () => {
+        setSelectedCustomerId("");
+        setCustomerSearchQuery("");
+        setAddedItems([]);
+        setDiscountValue(0);
 
-      setQuoteNumber(generateNewQuoteNumber(quoteDate));
-      if (editingQuotationDraft) {
-        clearEditingDraft();
+        const loadedQuotations = quotations || [];
+        const generateNewQuoteNumber = (dateStr) => {
+          const d = dateStr ? new Date(dateStr) : new Date();
+          const DD = String(d.getDate()).padStart(2, "0");
+          const MM = String(d.getMonth() + 1).padStart(2, "0");
+          const YY = String(d.getFullYear()).slice(-2);
+          const datePrefix = `KPB-${DD}${MM}${YY}-`;
+          const matchingQuotes = loadedQuotations.filter(q => q.quotationNumber && q.quotationNumber.startsWith(datePrefix));
+          let nextSeq = 1;
+          if (matchingQuotes.length > 0) {
+            const suffixes = matchingQuotes.map(q => {
+              const parts = q.quotationNumber.split("-");
+              const suffix = parts[parts.length - 1];
+              const num = parseInt(suffix, 10);
+              return isNaN(num) ? 0 : num;
+            });
+            nextSeq = Math.max(...suffixes, 0) + 1;
+          }
+          const XX = String(nextSeq).padStart(2, "0");
+          return `${datePrefix}${XX}`;
+        };
+
+        setQuoteNumber(generateNewQuoteNumber(quoteDate));
+        if (editingQuotationDraft) {
+          clearEditingDraft();
+        }
+        showToast("Quotation draft fields cleared.", "success");
       }
-    }
+    });
   };
 
   const handleFinalSaveQuotation = (statusValue) => {
     if (!selectedCustomerId) {
-      alert("Please select a customer for this quotation.");
+      showToast("Please select a customer for this quotation.", "error");
       return;
     }
     if (addedItems.length === 0) {
-      alert("Quotation must have at least one line item.");
+      showToast("Quotation must have at least one line item.", "error");
       return;
     }
-
     const customer = customers.find(c => c.id === selectedCustomerId);
-    
-    // Consistent inclusive calculation matching seed data and showroom terms
     const grandTotalBeforeDiscount = addedItems.reduce((acc, item) => acc + item.totalPrice, 0);
     const rawSubtotal = addedItems.reduce((acc, item) => {
       const rate = item.gstRate || 18;
@@ -369,12 +373,17 @@ export default function QuoteBuilder({
     const gstTotal = Math.round(grandTotalBeforeDiscount - rawSubtotal);
     const grandTotal = Math.max(0, grandTotalBeforeDiscount - discountValue);
 
+    const todayStr = new Date().toISOString().split("T")[0];
+    const finalDateStr = (quoteDate === todayStr) 
+      ? new Date().toISOString() 
+      : `${quoteDate}T12:00:00.000Z`;
+
     const quotationPayload = {
       id: editingQuotationDraft?.id || `q-${Date.now()}`,
       quotationNumber: quoteNumber,
       customerId: selectedCustomerId,
       customerName: customer ? customer.name : "Unknown",
-      date: quoteDate,
+      date: finalDateStr,
       items: addedItems,
       discount: discountValue,
       subtotal: subtotal,
@@ -388,10 +397,7 @@ export default function QuoteBuilder({
         bankName: settings.bankName
       }
     };
-
-    onSaveQuotation(" quotation", quotationPayload);
-    
-    // Clear and go to history
+    onSaveQuotation("quotation", quotationPayload);
     if (editingQuotationDraft) {
       clearEditingDraft();
     }
@@ -402,11 +408,10 @@ export default function QuoteBuilder({
     setActiveTab("history");
   };
 
-  const handleInlineCustomerSubmit = (e) => {
+  const handleInlineCustomerSubmit = async (e) => {
     e.preventDefault();
     if (!newCustomerForm.name.trim()) return;
-
-    const saved = onSaveQuotation("customer_inline", newCustomerForm);
+    const saved = await onSaveQuotation("customer_inline", newCustomerForm);
     if (saved) {
       setSelectedCustomerId(saved.id);
       setCustomerSearchQuery(`${saved.name} (${saved.phone || "No Phone"})`);
@@ -415,9 +420,11 @@ export default function QuoteBuilder({
     }
   };
 
-
-
   const handleAddWriteIn = () => {
+    if (!selectedCustomerId) {
+      showToast("Please select the customer first", "warning");
+      return;
+    }
     const desc = customWriteIn.description;
     const specs = customWriteIn.specs || "";
     const qty = parseInt(customWriteIn.qty) || 1;
@@ -425,7 +432,7 @@ export default function QuoteBuilder({
     const gstRate = parseInt(customWriteIn.gst) || 18;
 
     if (!desc.trim()) {
-      alert("Please enter a description for the custom item.");
+      showToast("Please enter an Item Title / Name.", "warning");
       return;
     }
 
@@ -500,7 +507,7 @@ export default function QuoteBuilder({
 
   return (
     <div className="space-y-6 text-slate-700">
-      
+
       {/* Header Bar */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0 pb-2 border-b border-slate-200">
         <div>
@@ -511,9 +518,9 @@ export default function QuoteBuilder({
             Draft, customize multi-line PC presets, calculate taxes and save quotations instantly.
           </p>
         </div>
-        
+
         {editingQuotationDraft && (
-          <button 
+          <button
             onClick={() => {
               clearEditingDraft();
               setSelectedCustomerId("");
@@ -531,10 +538,10 @@ export default function QuoteBuilder({
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
+
         {/* Core panel inputs */}
         <div className="lg:col-span-2 space-y-6">
-          
+
           {/* Section 1: Customer Info & Meta details */}
           <div className="glass-card rounded-2xl p-5 space-y-4 bg-white border border-slate-200">
             <h3 className="text-sm font-extrabold text-slate-950 flex items-center space-x-2 border-b border-slate-100 pb-3 uppercase tracking-wider text-[11px]">
@@ -543,13 +550,13 @@ export default function QuoteBuilder({
             </h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-slate-700">
-              
+
               {/* Customer Selector with Autocomplete Search ("Ajax on Typing") */}
               <div ref={customerContainerRef} className="sm:col-span-2 relative">
                 <label className="block text-xs font-bold text-slate-500 mb-1">Select Customer *</label>
                 <div className="flex space-x-2">
                   <div className="relative flex-1">
-                    <input 
+                    <input
                       type="text"
                       placeholder="Type name, phone or email..."
                       value={customerSearchQuery}
@@ -596,9 +603,9 @@ export default function QuoteBuilder({
                       </div>
                     )}
                   </div>
-                  
+
                   {/* Add Customer Inline trigger */}
-                  <button 
+                  <button
                     type="button"
                     onClick={() => setShowCustomerModal(true)}
                     className="p-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 hover:text-slate-800 rounded-xl transition-all flex items-center justify-center cursor-pointer shadow-sm shrink-0"
@@ -612,8 +619,8 @@ export default function QuoteBuilder({
               {/* Quote Date */}
               <div>
                 <label className="block text-xs font-bold text-slate-500 mb-1">Quotation Date *</label>
-                <input 
-                  type="date" 
+                <input
+                  type="date"
                   value={quoteDate}
                   onChange={(e) => setQuoteDate(e.target.value)}
                   className="glass-input px-3.5 py-2.5 rounded-xl text-xs w-full font-semibold text-slate-800"
@@ -623,8 +630,8 @@ export default function QuoteBuilder({
               {/* Quote number (readonly) */}
               <div>
                 <label className="block text-xs font-bold text-slate-500 mb-1">Quote Number</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   readOnly
                   value={quoteNumber}
                   className="glass-input px-3.5 py-2.5 rounded-xl text-xs w-full opacity-65 bg-slate-50 font-bold"
@@ -649,72 +656,123 @@ export default function QuoteBuilder({
             <div className="w-full space-y-3.5 max-w-3xl mx-auto">
               <div>
                 <label className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-450 mb-1">Item Title / Name *</label>
-                <input 
-                  type="text" 
-                  placeholder="Item Name (e.g. HP Pavilion Laptop)" 
+                <input
+                  type="text"
+                  placeholder="Item Name (e.g. HP Pavilion Laptop)"
                   value={customWriteIn.description}
-                  onChange={(e) => setCustomWriteIn({...customWriteIn, description: e.target.value})}
+                  onChange={(e) => {
+                    if (!selectedCustomerId) {
+                      showToast("Please select the customer first", "warning");
+                      return;
+                    }
+                    setCustomWriteIn({ ...customWriteIn, description: e.target.value });
+                  }}
+                  onFocus={() => {
+                    if (!selectedCustomerId) {
+                      showToast("Please select the customer first", "warning");
+                    }
+                  }}
                   className="glass-input px-4 py-3 rounded-xl text-xs w-full font-bold focus:border-brand-blue-dark transition-all duration-200 shadow-sm"
                 />
               </div>
 
               <div>
                 <label className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-450 mb-1">Specifications / Subtext (Optional)</label>
-                <textarea 
+                <textarea
                   rows="2"
-                  placeholder="Specifications / Subtext (e.g. Core i5, 16GB RAM, 512GB SSD)..." 
+                  placeholder="Specifications / Subtext (e.g. Core i5, 16GB RAM, 512GB SSD)..."
                   value={customWriteIn.specs || ""}
-                  onChange={(e) => setCustomWriteIn({...customWriteIn, specs: e.target.value})}
+                  onChange={(e) => {
+                    if (!selectedCustomerId) {
+                      showToast("Please select the customer first", "warning");
+                      return;
+                    }
+                    setCustomWriteIn({ ...customWriteIn, specs: e.target.value });
+                  }}
+                  onFocus={() => {
+                    if (!selectedCustomerId) {
+                      showToast("Please select the customer first", "warning");
+                    }
+                  }}
                   className="glass-input px-4 py-2.5 rounded-xl text-xs w-full resize-none font-semibold text-slate-600 focus:border-brand-blue-dark transition-all duration-200 shadow-sm"
                 />
               </div>
 
               <div className="grid grid-cols-3 gap-3.5">
-                <div className="relative">
-                  <label className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-450 mb-1">Full Price (INR) *</label>
-                  <div className="relative mt-0.5">
-                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 font-bold uppercase tracking-wider">INR</span>
-                    <input 
-                      type="number" 
-                      placeholder="Price" 
+                <div>
+                  <label className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-450 mb-1">PRICE (INR) *</label>
+                  <div className="relative mt-1">
+                    <input
+                      type="number"
+                      placeholder="Price"
                       value={customWriteIn.price || ""}
-                      onChange={(e) => setCustomWriteIn({...customWriteIn, price: e.target.value})}
-                      className="glass-input pl-11 pr-3.5 py-3 rounded-xl text-xs w-full font-bold focus:border-brand-blue-dark transition-all duration-200 shadow-sm"
+                      onChange={(e) => {
+                        if (!selectedCustomerId) {
+                          showToast("Please select the customer first", "warning");
+                          return;
+                        }
+                        setCustomWriteIn({ ...customWriteIn, price: e.target.value });
+                      }}
+                      onFocus={() => {
+                        if (!selectedCustomerId) {
+                          showToast("Please select the customer first", "warning");
+                        }
+                      }}
+                      className="glass-input px-3.5 rounded-xl text-xs w-full font-bold focus:border-brand-blue-dark transition-all duration-200 shadow-sm h-11"
                     />
                   </div>
                 </div>
-                
+
                 <div>
                   <label className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-450 mb-1">GST Rate</label>
-                  <select 
+                  <select
                     value={customWriteIn.gst}
-                    onChange={(e) => setCustomWriteIn({...customWriteIn, gst: e.target.value})}
-                    className="glass-input px-3.5 py-3 rounded-xl text-xs w-full font-bold focus:border-brand-blue-dark transition-all duration-200 shadow-sm mt-0.5"
+                    onChange={(e) => {
+                      if (!selectedCustomerId) {
+                        showToast("Please select the customer first", "warning");
+                        return;
+                      }
+                      setCustomWriteIn({ ...customWriteIn, gst: e.target.value });
+                    }}
+                    onFocus={() => {
+                      if (!selectedCustomerId) {
+                        showToast("Please select the customer first", "warning");
+                      }
+                    }}
+                    className="glass-input px-3.5 rounded-xl text-xs w-full font-bold focus:border-brand-blue-dark transition-all duration-200 shadow-sm mt-1 h-11"
                   >
-                    <option value="18">18% GST</option>
-                    <option value="12">12% GST</option>
-                    <option value="5">5% GST</option>
-                    <option value="28">28% GST</option>
-                    <option value="0">0% GST</option>
+                    <option value="18">18%</option>
+                    <option value="12">12%</option>
+                    <option value="5">5%</option>
+                    <option value="28">28%</option>
+                    <option value="0">0%</option>
                   </select>
                 </div>
 
                 <div>
                   <label className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-450 mb-1">Quantity</label>
-                  <div className="relative flex items-center justify-center bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-1 hover:border-slate-350 transition-colors shadow-sm mt-0.5 h-[41px] bg-white">
-                    <span className="text-[10px] text-slate-400 uppercase font-bold shrink-0 mr-2 select-none">Qty</span>
-                    <input 
-                      type="number" 
-                      placeholder="Qty" 
-                      value={customWriteIn.qty}
-                      onChange={(e) => setCustomWriteIn({...customWriteIn, qty: parseInt(e.target.value) || 1})}
-                      className="bg-transparent text-xs w-full font-bold text-slate-800 focus:outline-none text-center"
-                    />
-                  </div>
+                  <input
+                    type="number"
+                    placeholder="Qty"
+                    value={customWriteIn.qty}
+                    onChange={(e) => {
+                      if (!selectedCustomerId) {
+                        showToast("Please select the customer first", "warning");
+                        return;
+                      }
+                      setCustomWriteIn({ ...customWriteIn, qty: e.target.value });
+                    }}
+                    onFocus={() => {
+                      if (!selectedCustomerId) {
+                        showToast("Please select the customer first", "warning");
+                      }
+                    }}
+                    className="glass-input px-3.5 rounded-xl text-xs w-full font-bold focus:border-brand-blue-dark transition-all duration-200 shadow-sm mt-1 h-11 text-center"
+                  />
                 </div>
               </div>
 
-              <button 
+              <button
                 type="button"
                 onClick={handleAddWriteIn}
                 className="w-full flex items-center justify-center bg-gradient-to-r from-brand-blue-dark to-brand-blue hover:from-brand-blue hover:to-brand-blue-dark text-white font-extrabold py-3.5 rounded-xl shadow-md text-xs cursor-pointer transition-all duration-200 transform active:scale-[0.99] mt-3 animate-fadeIn"
@@ -756,7 +814,7 @@ export default function QuoteBuilder({
                           {item.description}
                         </td>
                         <td className="py-3 px-2 text-center">
-                          <input 
+                          <input
                             type="number"
                             value={item.unitPrice}
                             onChange={(e) => handleUpdateUnitPrice(item.id, e.target.value)}
@@ -768,16 +826,16 @@ export default function QuoteBuilder({
                         </td>
                         <td className="py-3 px-2 text-center">
                           <div className="inline-flex items-center space-x-1">
-                            <button 
-                              type="button" 
+                            <button
+                              type="button"
                               onClick={() => handleUpdateQty(item.id, -1)}
                               className="p-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 transition-colors cursor-pointer border border-slate-200 font-bold"
                             >
                               -
                             </button>
                             <span className="font-bold text-slate-800 px-1.5 text-center w-6">{item.qty}</span>
-                            <button 
-                              type="button" 
+                            <button
+                              type="button"
                               onClick={() => handleUpdateQty(item.id, 1)}
                               className="p-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 transition-colors cursor-pointer border border-slate-200 font-bold"
                             >
@@ -789,7 +847,7 @@ export default function QuoteBuilder({
                           {formatCurrency(item.totalPrice)}
                         </td>
                         <td className="py-3 pl-2 text-center">
-                          <button 
+                          <button
                             type="button"
                             onClick={() => handleRemoveItem(item.id)}
                             className="p-1.5 rounded-lg hover:bg-rose-500/5 text-slate-400 hover:text-rose-500 transition-colors cursor-pointer"
@@ -809,7 +867,7 @@ export default function QuoteBuilder({
 
         {/* Right Columns: Summary Calculations and Terms conditions */}
         <div className="space-y-6">
-          
+
           {/* Summary calculations */}
           <div className="glass-card rounded-2xl p-5 space-y-4 bg-white border border-slate-200">
             <h3 className="text-sm font-extrabold text-slate-950 flex items-center space-x-2 border-b border-slate-100 pb-3 uppercase tracking-wider text-[11px]">
@@ -818,7 +876,7 @@ export default function QuoteBuilder({
             </h3>
 
             <div className="space-y-3.5 text-xs text-slate-500 font-semibold">
-              
+
               <div className="flex justify-between items-center">
                 <span>Subtotal (Pre-tax Base)</span>
                 <span className="font-bold text-slate-800">{formatCurrency(subtotal)}</span>
@@ -834,8 +892,8 @@ export default function QuoteBuilder({
                 <span className="font-bold text-slate-700">Discount Override (INR)</span>
                 <div className="relative w-32">
                   <IndianRupee className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
-                  <input 
-                    type="number" 
+                  <input
+                    type="number"
                     value={discountValue || ""}
                     onChange={(e) => setDiscountValue(parseFloat(e.target.value) || 0)}
                     className="glass-input pl-7 pr-2 py-1.5 rounded-xl text-xs w-full text-right font-black text-slate-900"
@@ -863,7 +921,7 @@ export default function QuoteBuilder({
             <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
               {settings.terms.map((term, idx) => (
                 <label key={idx} className="flex items-start space-x-2.5 p-2 rounded-xl bg-slate-50 border border-slate-100 text-slate-700 text-xs cursor-pointer hover:bg-slate-100/50">
-                  <input 
+                  <input
                     type="checkbox"
                     checked={selectedTerms.includes(term)}
                     onChange={() => handleTermCheckboxToggle(term)}
@@ -876,7 +934,7 @@ export default function QuoteBuilder({
               {/* Display dynamic local terms that might not be in settings */}
               {selectedTerms.filter(t => !settings.terms.includes(t)).map((t, idx) => (
                 <label key={idx + 100} className="flex items-start space-x-2.5 p-2 rounded-xl bg-brand-blue-dark/5 border border-brand-blue-dark/10 text-brand-blue-dark text-xs cursor-pointer">
-                  <input 
+                  <input
                     type="checkbox"
                     checked={true}
                     onChange={() => handleTermCheckboxToggle(t)}
@@ -889,9 +947,9 @@ export default function QuoteBuilder({
 
             {/* Add term input inline for this quote */}
             <div className="flex space-x-2 pt-2 border-t border-slate-100">
-              <input 
-                type="text" 
-                placeholder="Custom spec note..." 
+              <input
+                type="text"
+                placeholder="Custom spec note..."
                 value={customTermInput}
                 onChange={(e) => setCustomTermInput(e.target.value)}
                 className="glass-input px-3 py-1.5 rounded-xl text-[11px] flex-1"
@@ -902,7 +960,7 @@ export default function QuoteBuilder({
                   }
                 }}
               />
-              <button 
+              <button
                 type="button"
                 onClick={handleAddCustomTerm}
                 className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200 rounded-xl text-[10px] font-bold cursor-pointer"
@@ -914,7 +972,7 @@ export default function QuoteBuilder({
 
           {/* Submit Actions */}
           <div className="glass-card rounded-2xl p-5 space-y-3 bg-white border border-slate-200">
-            <button 
+            <button
               type="button"
               onClick={handleSaveInvoice}
               className="w-full flex items-center justify-center space-x-2 bg-gradient-to-r from-brand-blue-dark to-brand-blue hover:from-brand-blue hover:to-brand-blue-dark text-white font-bold py-3.5 rounded-xl shadow-lg active:scale-95 transition-all text-xs cursor-pointer"
@@ -922,8 +980,8 @@ export default function QuoteBuilder({
               <Save className="h-4.5 w-4.5" />
               <span>{editingQuotationDraft ? "Save Modified Quotation" : "Construct & Save Quotation"}</span>
             </button>
-            
-            <button 
+
+            <button
               type="button"
               onClick={() => {
                 clearEditingDraft();
@@ -943,7 +1001,7 @@ export default function QuoteBuilder({
           <div className="w-full max-w-md bg-white border border-slate-200 shadow-2xl p-6 rounded-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wider text-[11px]">Create New Customer Profile</h3>
-              <button 
+              <button
                 type="button"
                 onClick={() => setShowCustomerModal(false)}
                 className="text-slate-400 hover:text-slate-700 text-xs font-bold"
@@ -955,55 +1013,55 @@ export default function QuoteBuilder({
             <form onSubmit={handleCreateCustomerInline} className="space-y-4">
               <div>
                 <label className="block text-[10px] font-bold text-slate-500 mb-0.5">Customer Name *</label>
-                <input 
+                <input
                   type="text" required placeholder="e.g. Kranthi Kumar Garu"
                   value={newCustomerForm.name}
-                  onChange={(e) => setNewCustomerForm({...newCustomerForm, name: e.target.value})}
+                  onChange={(e) => setNewCustomerForm({ ...newCustomerForm, name: e.target.value })}
                   className="glass-input px-3.5 py-2 rounded-xl text-xs w-full"
                 />
               </div>
 
               <div>
                 <label className="block text-[10px] font-bold text-slate-500 mb-0.5">Mobile Phone *</label>
-                <input 
+                <input
                   type="tel" required placeholder="e.g. +91 9988776655"
                   value={newCustomerForm.phone}
-                  onChange={(e) => setNewCustomerForm({...newCustomerForm, phone: e.target.value})}
+                  onChange={(e) => setNewCustomerForm({ ...newCustomerForm, phone: e.target.value })}
                   className="glass-input px-3.5 py-2 rounded-xl text-xs w-full"
                 />
               </div>
 
               <div>
                 <label className="block text-[10px] font-bold text-slate-500 mb-0.5">Email Address</label>
-                <input 
+                <input
                   type="email" placeholder="e.g. kranthi.kumar@gmail.com"
                   value={newCustomerForm.email}
-                  onChange={(e) => setNewCustomerForm({...newCustomerForm, email: e.target.value})}
+                  onChange={(e) => setNewCustomerForm({ ...newCustomerForm, email: e.target.value })}
                   className="glass-input px-3.5 py-2 rounded-xl text-xs w-full"
                 />
               </div>
 
               <div>
                 <label className="block text-[10px] font-bold text-slate-500 mb-0.5">GSTIN Number (optional)</label>
-                <input 
+                <input
                   type="text" placeholder="e.g. 37ACHPB2370B1Z7"
                   value={newCustomerForm.gst}
-                  onChange={(e) => setNewCustomerForm({...newCustomerForm, gst: e.target.value})}
+                  onChange={(e) => setNewCustomerForm({ ...newCustomerForm, gst: e.target.value })}
                   className="glass-input px-3.5 py-2 rounded-xl text-xs w-full"
                 />
               </div>
 
               <div>
                 <label className="block text-[10px] font-bold text-slate-500 mb-0.5">Billing Address</label>
-                <textarea 
+                <textarea
                   rows="2" placeholder="e.g. Brodipet 4th line, Guntur"
                   value={newCustomerForm.address}
-                  onChange={(e) => setNewCustomerForm({...newCustomerForm, address: e.target.value})}
+                  onChange={(e) => setNewCustomerForm({ ...newCustomerForm, address: e.target.value })}
                   className="glass-input px-3.5 py-2 rounded-xl text-xs w-full resize-none"
                 />
               </div>
 
-              <button 
+              <button
                 type="submit"
                 className="w-full flex items-center justify-center bg-brand-blue-dark hover:bg-brand-blue text-white font-bold py-2.5 rounded-xl shadow-md text-xs cursor-pointer"
               >
@@ -1017,7 +1075,7 @@ export default function QuoteBuilder({
 
       {/* Toast Notification at Bottom Center */}
       {toast && (
-        <div 
+        <div
           className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] w-[90%] max-w-md bg-slate-900 border border-white/10 shadow-2xl rounded-2xl p-4 flex items-center justify-between space-x-4 animate-slideUp pointer-events-auto"
         >
           <div className="flex-1 flex items-start space-x-3 text-white">

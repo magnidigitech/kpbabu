@@ -10,7 +10,8 @@ import {
   Copy, 
   Trash2,
   TrendingUp,
-  ArrowUpRight
+  ArrowUpRight,
+  ChevronDown
 } from "lucide-react";
 
 export default function Dashboard({ 
@@ -18,7 +19,9 @@ export default function Dashboard({
   setActiveTab, 
   onSelectQuotation, 
   onDuplicateQuotation, 
-  onDeleteQuotation 
+  onDeleteQuotation,
+  onUpdateQuotationStatus,
+  onOpenStatusModal
 }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -30,6 +33,33 @@ export default function Dashboard({
       currency: "INR",
       maximumFractionDigits: 0
     }).format(val);
+  };
+
+  const formatDateTimeIST = (dateStr) => {
+    if (!dateStr) return "";
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return dateStr;
+
+      const estString = d.toLocaleString("en-US", { timeZone: "Asia/Kolkata" });
+      const localD = new Date(estString);
+
+      const day = String(localD.getDate()).padStart(2, "0");
+      const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      const month = months[localD.getMonth()];
+      const year = localD.getFullYear();
+
+      let hours = localD.getHours();
+      const minutes = String(localD.getMinutes()).padStart(2, "0");
+      const ampm = hours >= 12 ? "PM" : "AM";
+      hours = hours % 12;
+      hours = hours ? hours : 12;
+      const strHours = String(hours).padStart(2, "0");
+
+      return `${day} ${month} ${year}, ${strHours}:${minutes} ${ampm}`;
+    } catch (e) {
+      return dateStr;
+    }
   };
 
   // Calculations for KPI Cards
@@ -375,26 +405,27 @@ export default function Dashboard({
                     <td className="px-6 py-4 text-slate-800 font-semibold">
                       {q.customerName}
                     </td>
-                    <td className="px-6 py-4 text-slate-500">
-                      {new Date(q.date).toLocaleDateString("en-IN", {
-                        day: "2-digit",
-                        month: "2-digit",
-                        year: "numeric"
-                      })}
+                    <td className="px-6 py-4 text-slate-500 font-semibold">
+                      {formatDateTimeIST(q.date)}
                     </td>
                     <td className="px-6 py-4 text-right font-extrabold text-slate-900">
                       {formatCurrency(q.grandTotal)}
                     </td>
                     <td className="px-6 py-4 text-center">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider border ${
-                        q.status === "Approved" 
-                          ? "bg-emerald-50 text-emerald-600 border-emerald-100" 
-                          : q.status === "Pending"
-                          ? "bg-amber-50 text-amber-600 border-amber-100"
-                          : "bg-rose-50 text-rose-600 border-rose-100"
-                      }`}>
-                        {q.status}
-                      </span>
+                      <button
+                        type="button"
+                        onClick={() => onOpenStatusModal(q)}
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider border cursor-pointer focus:outline-none transition-all shadow-sm ${
+                          q.status === "Approved" 
+                            ? "bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100" 
+                            : q.status === "Pending"
+                            ? "bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100"
+                            : "bg-rose-50 text-rose-600 border-rose-200 hover:bg-rose-100"
+                        }`}
+                      >
+                        <span>{q.status}</span>
+                        <ChevronDown className="h-2.5 w-2.5 ml-1 shrink-0 opacity-75" />
+                      </button>
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end space-x-2">

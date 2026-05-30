@@ -7,7 +7,8 @@ import {
   Calendar,
   User,
   Filter,
-  Share2
+  Share2,
+  ChevronDown
 } from "lucide-react";
 import { buildShareLink, generateShareHash } from "../utils/shareLink";
 
@@ -30,12 +31,41 @@ const formatPhone = (raw) => {
   return digits || null;
 };
 
+const formatDateTimeIST = (dateStr) => {
+  if (!dateStr) return "";
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+
+    const estString = d.toLocaleString("en-US", { timeZone: "Asia/Kolkata" });
+    const localD = new Date(estString);
+
+    const day = String(localD.getDate()).padStart(2, "0");
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const month = months[localD.getMonth()];
+    const year = localD.getFullYear();
+
+    let hours = localD.getHours();
+    const minutes = String(localD.getMinutes()).padStart(2, "0");
+    const ampm = hours >= 12 ? "PM" : "AM";
+    hours = hours % 12;
+    hours = hours ? hours : 12;
+    const strHours = String(hours).padStart(2, "0");
+
+    return `${day} ${month} ${year}, ${strHours}:${minutes} ${ampm}`;
+  } catch (e) {
+    return dateStr;
+  }
+};
+
 export default function QuotationHistory({ 
   quotations, 
   customers = [],
   onSelectQuotation, 
   onDuplicateQuotation, 
   onDeleteQuotation,
+  onUpdateQuotationStatus,
+  onOpenStatusModal,
   settings
 }) {
   const [searchQuery, setSearchQuery] = useState("");
@@ -123,17 +153,33 @@ export default function QuotationHistory({
               className="glass-card rounded-2xl p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4 hover:border-brand-blue-dark/25 bg-white group border border-slate-200"
             >
               <div className="flex-1 space-y-2">
-                <div className="flex items-center space-x-3">
-                  <h3 className="text-sm font-extrabold text-slate-900 group-hover:text-brand-blue transition-colors">{q.quotationNumber}</h3>
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold border uppercase tracking-wider ${
-                    q.status === "Approved" 
-                      ? "bg-emerald-50 text-emerald-600 border-emerald-100" 
-                      : q.status === "Pending"
-                      ? "bg-amber-50 text-amber-600 border-amber-100"
-                      : "bg-rose-50 text-rose-600 border-rose-100"
-                  }`}>
-                    {q.status}
-                  </span>
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center space-x-3">
+                    <h3 className="text-sm font-extrabold text-slate-900 group-hover:text-brand-blue transition-colors">{q.quotationNumber}</h3>
+                    <button
+                      type="button"
+                      onClick={() => onOpenStatusModal(q)}
+                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider border cursor-pointer focus:outline-none transition-all shadow-sm ${
+                        q.status === "Approved" 
+                          ? "bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100" 
+                          : q.status === "Pending"
+                          ? "bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100"
+                          : "bg-rose-50 text-rose-600 border-rose-200 hover:bg-rose-100"
+                      }`}
+                    >
+                      <span>{q.status}</span>
+                      <ChevronDown className="h-2.5 w-2.5 ml-1 shrink-0 opacity-75" />
+                    </button>
+                  </div>
+
+                  {/* Share button - mobile only */}
+                  <button 
+                    onClick={() => handleWhatsApp(q)}
+                    className="md:hidden p-2 rounded-xl bg-emerald-50 hover:bg-emerald-500 text-emerald-600 hover:text-white border border-emerald-200 hover:border-emerald-500 transition-colors cursor-pointer shadow-sm shrink-0"
+                    title="Share on WhatsApp"
+                  >
+                    <Share2 className="h-3.5 w-3.5" />
+                  </button>
                 </div>
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] text-slate-500">
@@ -144,7 +190,7 @@ export default function QuotationHistory({
                   <div className="flex items-center space-x-2">
                     <Calendar className="h-3.5 w-3.5 text-slate-400" />
                     <span className="font-semibold">
-                      {new Date(q.date).toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" })}
+                      {formatDateTimeIST(q.date)}
                     </span>
                   </div>
                 </div>
@@ -161,21 +207,21 @@ export default function QuotationHistory({
                 </div>
 
                 <div className="flex items-center space-x-2">
+                  {/* Share button - desktop/system only */}
+                  <button 
+                    onClick={() => handleWhatsApp(q)}
+                    className="hidden md:inline-flex p-2 rounded-xl bg-emerald-50 hover:bg-emerald-500 text-emerald-600 hover:text-white border border-emerald-200 hover:border-emerald-500 transition-colors cursor-pointer shadow-sm shrink-0"
+                    title="Share on WhatsApp"
+                  >
+                    <Share2 className="h-3.5 w-3.5" />
+                  </button>
+
                   <button 
                     onClick={() => onSelectQuotation(q)}
                     className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-brand-blue-dark/5 hover:bg-brand-blue-dark text-brand-blue-dark hover:text-white border border-brand-blue-dark/10 hover:border-brand-blue-dark text-[11px] font-bold transition-all cursor-pointer shadow-sm"
                   >
                     <Printer className="h-3.5 w-3.5" />
                     <span>View A4 PDF</span>
-                  </button>
-
-                  {/* WhatsApp Share */}
-                  <button 
-                    onClick={() => handleWhatsApp(q)}
-                    className="p-2 rounded-xl bg-emerald-50 hover:bg-emerald-500 text-emerald-600 hover:text-white border border-emerald-200 hover:border-emerald-500 transition-colors cursor-pointer"
-                    title="Share on WhatsApp"
-                  >
-                    <Share2 className="h-3.5 w-3.5" />
                   </button>
 
                   <button 

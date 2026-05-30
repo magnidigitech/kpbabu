@@ -2,7 +2,7 @@
 
 export const DEFAULT_SETTINGS = {
   storeName: "SRI KP BABU COMPUTER STATIONERYMART",
-  tagline: "HP ASUS ACER AUTHORISED SHOW ROOM",
+  tagline: "HP AUTHORISED SHOWROOM",
   established: "SINCE 1995",
   address: "H.O: Near Sai Baba Temple, 3/7 Brodipet, Opp. AXIS BANK, Guntur - 522 002.",
   phone: "+91 9597553232, 9951644777",

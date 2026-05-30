@@ -11,7 +11,7 @@ import {
   MessageSquare
 } from "lucide-react";
 
-export default function Settings({ settings, onUpdateSettings, onResetDatabase }) {
+export default function Settings({ settings, onUpdateSettings, onResetDatabase, showConfirm, showToast }) {
   const [formData, setFormData] = useState({ ...settings });
   const [newTerm, setNewTerm] = useState("");
   const [savedSuccess, setSavedSuccess] = useState(false);
@@ -49,11 +49,18 @@ export default function Settings({ settings, onUpdateSettings, onResetDatabase }
   };
 
   const triggerReset = () => {
-    if (window.confirm("Are you sure you want to restore the default seed data? This will clear all custom quotations, products, and customer directories.")) {
-      onResetDatabase();
-      alert("Database reset successfully!");
-      window.location.reload();
-    }
+    showConfirm({
+      title: "Restore Seed Database",
+      message: "Are you sure you want to restore the default seed database? This will clear all custom quotations, products, and customer directories. Type 'RESTORE' to authorize reset.",
+      requireInput: true,
+      expectedInputs: ["RESTORE", "RESTORE"],
+      inputPlaceholder: "Type 'RESTORE' here...",
+      onConfirm: () => {
+        onResetDatabase();
+        showToast("Database reset successfully!", "success");
+        setTimeout(() => window.location.reload(), 1500);
+      }
+    });
   };
 
   return (
