@@ -340,30 +340,26 @@ export default function Dashboard({
         </div>
       </div>
 
-      {/* Recent Quotations Table */}
+      {/* Recent Quotations — Cards on Mobile, Table on Desktop */}
       <div className="glass-card rounded-2xl overflow-hidden bg-white">
-        {/* Table Controls */}
+        {/* Header + Search/Filter */}
         <div className="p-5 border-b border-slate-100 flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
           <div>
             <h3 className="text-sm font-extrabold text-slate-950 uppercase tracking-wider text-[11px]">Recent Quotations</h3>
-            <p className="text-[10px] text-slate-500 font-medium">Search and manage computer store quotation history.</p>
+            <p className="text-[10px] text-slate-500 font-medium">Swipe left on a card to reveal actions.</p>
           </div>
-
           <div className="flex flex-col sm:flex-row sm:items-center space-y-3 sm:space-y-0 sm:space-x-3">
-            {/* Search Input */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
-              <input 
-                type="text" 
-                placeholder="Search number or customer..." 
+              <input
+                type="text"
+                placeholder="Search number or customer..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="glass-input pl-9 pr-4 py-1.5 rounded-xl text-xs w-full sm:w-56"
               />
             </div>
-
-            {/* Filter Dropdown */}
-            <select 
+            <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
               className="glass-input px-3 py-1.5 rounded-xl text-xs w-full sm:w-auto"
@@ -376,8 +372,46 @@ export default function Dashboard({
           </div>
         </div>
 
-        {/* Table Content */}
-        <div className="overflow-x-auto">
+        {/* ── MOBILE: Swipeable Cards ── */}
+        <div className="md:hidden divide-y divide-slate-100">
+          {filteredQuotations.length === 0 ? (
+            <div className="px-5 py-10 text-center text-slate-400 font-bold text-xs">
+              No quotations found matching your search.
+            </div>
+          ) : (
+            filteredQuotations.map((q) => {
+              const statusBar = {
+                Approved: "bg-emerald-500",
+                Pending:  "bg-amber-400",
+                Expired:  "bg-rose-400",
+              }[q.status] || "bg-slate-300";
+
+              const statusBadge = {
+                Approved: "bg-emerald-50 text-emerald-600 border-emerald-200",
+                Pending:  "bg-amber-50 text-amber-600 border-amber-200",
+                Expired:  "bg-rose-50 text-rose-600 border-rose-200",
+              }[q.status] || "bg-slate-50 text-slate-600 border-slate-200";
+
+              return (
+                <SwipeCard
+                  key={q.id}
+                  q={q}
+                  statusBar={statusBar}
+                  statusBadge={statusBadge}
+                  formatCurrency={formatCurrency}
+                  formatDateTimeIST={formatDateTimeIST}
+                  onSelectQuotation={onSelectQuotation}
+                  onDuplicateQuotation={onDuplicateQuotation}
+                  onDeleteQuotation={onDeleteQuotation}
+                  onOpenStatusModal={onOpenStatusModal}
+                />
+              );
+            })
+          )}
+        </div>
+
+        {/* ── DESKTOP: Table ── */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-100 text-slate-500 text-[10px] font-extrabold tracking-widest uppercase">
@@ -399,25 +433,17 @@ export default function Dashboard({
               ) : (
                 filteredQuotations.map((q) => (
                   <tr key={q.id} className="hover:bg-slate-50 transition-colors text-slate-700">
-                    <td className="px-6 py-4 font-bold text-slate-900">
-                      {q.quotationNumber}
-                    </td>
-                    <td className="px-6 py-4 text-slate-800 font-semibold">
-                      {q.customerName}
-                    </td>
-                    <td className="px-6 py-4 text-slate-500 font-semibold">
-                      {formatDateTimeIST(q.date)}
-                    </td>
-                    <td className="px-6 py-4 text-right font-extrabold text-slate-900">
-                      {formatCurrency(q.grandTotal)}
-                    </td>
+                    <td className="px-6 py-4 font-bold text-slate-900">{q.quotationNumber}</td>
+                    <td className="px-6 py-4 text-slate-800 font-semibold">{q.customerName}</td>
+                    <td className="px-6 py-4 text-slate-500 font-semibold">{formatDateTimeIST(q.date)}</td>
+                    <td className="px-6 py-4 text-right font-extrabold text-slate-900">{formatCurrency(q.grandTotal)}</td>
                     <td className="px-6 py-4 text-center">
                       <button
                         type="button"
                         onClick={() => onOpenStatusModal(q)}
                         className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider border cursor-pointer focus:outline-none transition-all shadow-sm ${
-                          q.status === "Approved" 
-                            ? "bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100" 
+                          q.status === "Approved"
+                            ? "bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100"
                             : q.status === "Pending"
                             ? "bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100"
                             : "bg-rose-50 text-rose-600 border-rose-200 hover:bg-rose-100"
@@ -429,25 +455,13 @@ export default function Dashboard({
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end space-x-2">
-                        <button 
-                          onClick={() => onSelectQuotation(q)}
-                          className="p-1.5 rounded-lg hover:bg-brand-blue-dark/10 text-brand-blue-dark transition-colors cursor-pointer"
-                          title="View / Print PDF"
-                        >
+                        <button onClick={() => onSelectQuotation(q)} className="p-1.5 rounded-lg hover:bg-brand-blue-dark/10 text-brand-blue-dark transition-colors cursor-pointer" title="View / Print PDF">
                           <Printer className="h-4 w-4" />
                         </button>
-                        <button 
-                          onClick={() => onDuplicateQuotation(q)}
-                          className="p-1.5 rounded-lg hover:bg-brand-cyan/10 text-brand-cyan transition-colors cursor-pointer"
-                          title="Duplicate Quotation"
-                        >
+                        <button onClick={() => onDuplicateQuotation(q)} className="p-1.5 rounded-lg hover:bg-brand-cyan/10 text-brand-cyan transition-colors cursor-pointer" title="Duplicate Quotation">
                           <Copy className="h-4 w-4" />
                         </button>
-                        <button 
-                          onClick={() => onDeleteQuotation(q.id)}
-                          className="p-1.5 rounded-lg hover:bg-rose-500/10 text-rose-500 transition-colors cursor-pointer"
-                          title="Delete Quotation"
-                        >
+                        <button onClick={() => onDeleteQuotation(q.id)} className="p-1.5 rounded-lg hover:bg-rose-500/10 text-rose-500 transition-colors cursor-pointer" title="Delete Quotation">
                           <Trash2 className="h-4 w-4" />
                         </button>
                       </div>
@@ -457,6 +471,120 @@ export default function Dashboard({
               )}
             </tbody>
           </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── SwipeCard Component (mobile only) ──
+function SwipeCard({ q, statusBar, statusBadge, formatCurrency, formatDateTimeIST, onSelectQuotation, onDuplicateQuotation, onDeleteQuotation, onOpenStatusModal }) {
+  const [swipeX, setSwipeX] = React.useState(0);
+  const [dragging, setDragging] = React.useState(false);
+  const startX = React.useRef(0);
+  const currentX = React.useRef(0);
+  const REVEAL_THRESHOLD = 72; // px to snap open
+  const MAX_SWIPE = 200;       // max reveal width
+
+  const onTouchStart = (e) => {
+    startX.current = e.touches[0].clientX;
+    currentX.current = swipeX;
+    setDragging(true);
+  };
+
+  const onTouchMove = (e) => {
+    if (!dragging) return;
+    const diff = startX.current - e.touches[0].clientX;
+    const next = Math.max(0, Math.min(MAX_SWIPE, currentX.current + diff));
+    setSwipeX(next);
+  };
+
+  const onTouchEnd = () => {
+    setDragging(false);
+    if (swipeX > REVEAL_THRESHOLD) {
+      setSwipeX(MAX_SWIPE);
+    } else {
+      setSwipeX(0);
+    }
+  };
+
+  const close = () => setSwipeX(0);
+
+  return (
+    <div className="relative overflow-hidden">
+      {/* Actions revealed behind card on swipe */}
+      <div
+        className="absolute right-0 top-0 bottom-0 flex items-stretch"
+        style={{ width: MAX_SWIPE }}
+      >
+        {/* Status */}
+        <button
+          onClick={() => { onOpenStatusModal(q); close(); }}
+          className="flex-1 flex flex-col items-center justify-center gap-1 bg-amber-500 text-white text-[9px] font-bold uppercase tracking-wider"
+        >
+          <ChevronDown className="h-4 w-4" />
+          <span>Status</span>
+        </button>
+        {/* PDF */}
+        <button
+          onClick={() => { onSelectQuotation(q); close(); }}
+          className="flex-1 flex flex-col items-center justify-center gap-1 bg-brand-blue-dark text-white text-[9px] font-bold uppercase tracking-wider"
+        >
+          <Printer className="h-4 w-4" />
+          <span>PDF</span>
+        </button>
+        {/* Duplicate */}
+        <button
+          onClick={() => { onDuplicateQuotation(q); close(); }}
+          className="flex-1 flex flex-col items-center justify-center gap-1 bg-slate-500 text-white text-[9px] font-bold uppercase tracking-wider"
+        >
+          <Copy className="h-4 w-4" />
+          <span>Copy</span>
+        </button>
+        {/* Delete */}
+        <button
+          onClick={() => { onDeleteQuotation(q.id); close(); }}
+          className="flex-1 flex flex-col items-center justify-center gap-1 bg-rose-500 text-white text-[9px] font-bold uppercase tracking-wider"
+        >
+          <Trash2 className="h-4 w-4" />
+          <span>Delete</span>
+        </button>
+      </div>
+
+      {/* Card face */}
+      <div
+        className="relative bg-white flex items-stretch"
+        style={{
+          transform: `translateX(-${swipeX}px)`,
+          transition: dragging ? "none" : "transform 0.25s cubic-bezier(0.4,0,0.2,1)",
+          willChange: "transform",
+        }}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+      >
+        {/* Colored left status bar */}
+        <div className={`w-1 shrink-0 ${statusBar}`} />
+
+        {/* Card content */}
+        <div className="flex-1 px-4 py-3 space-y-2">
+          {/* Row 1: Quote number + status badge */}
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-extrabold text-slate-900">{q.quotationNumber}</span>
+            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider border ${statusBadge}`}>
+              {q.status}
+            </span>
+          </div>
+          {/* Row 2: Customer + Date */}
+          <div className="flex items-center justify-between text-[11px]">
+            <span className="font-semibold text-slate-700 truncate max-w-[55%]">{q.customerName}</span>
+            <span className="text-slate-400 font-semibold">{formatDateTimeIST(q.date)}</span>
+          </div>
+          {/* Row 3: Total + swipe hint */}
+          <div className="flex items-center justify-between">
+            <span className="text-base font-black text-slate-900">{formatCurrency(q.grandTotal)}</span>
+            <span className="text-[9px] text-slate-300 font-bold tracking-wider">swipe</span>
+          </div>
         </div>
       </div>
     </div>
