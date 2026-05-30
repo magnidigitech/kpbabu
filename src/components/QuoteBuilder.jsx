@@ -719,7 +719,7 @@ export default function QuoteBuilder({
                 onClick={handleAddWriteIn}
                 className="w-full flex items-center justify-center bg-gradient-to-r from-brand-blue-dark to-brand-blue hover:from-brand-blue hover:to-brand-blue-dark text-white font-extrabold py-3.5 rounded-xl shadow-md text-xs cursor-pointer transition-all duration-200 transform active:scale-[0.99] mt-3 animate-fadeIn"
               >
-                <Plus className="h-4.5 w-4.5 mr-1.5" /> Add Write-In Item to Quotation
+                <Plus className="h-4.5 w-4.5 mr-1.5" /> Add Item
               </button>
             </div>
           </div>
@@ -734,7 +734,7 @@ export default function QuoteBuilder({
             {addedItems.length === 0 ? (
               <div className="text-center py-12 text-slate-400 font-bold text-xs leading-relaxed bg-slate-50/50 border border-slate-100 rounded-2xl">
                 No items have been added to this quotation yet.<br />
-                Fill in the details above and click "Add Write-In Item" to begin building this quotation!
+                Fill in the details above and click "Add Item" to begin building this quotation!
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -756,24 +756,12 @@ export default function QuoteBuilder({
                           {item.description}
                         </td>
                         <td className="py-3 px-2 text-center">
-                          <div className="inline-flex items-center space-x-1">
-                            <input 
-                              type="number"
-                              value={item.unitPrice}
-                              onChange={(e) => handleUpdateUnitPrice(item.id, e.target.value)}
-                              className="bg-slate-50 border border-slate-200 rounded-lg py-1 px-1.5 text-xs text-center w-20 text-slate-800 font-bold focus:outline-none focus:border-brand-blue-dark"
-                            />
-                            {isLineItemPriceOverridden(item) && (
-                              <button
-                                type="button"
-                                onClick={() => handleSaveComponentPriceToCatalog(item.productId, item.unitPrice)}
-                                className="p-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 hover:text-emerald-700 rounded-lg border border-emerald-200 transition-all cursor-pointer shadow-sm shrink-0"
-                                title="Update Master Catalog Price"
-                              >
-                                <Save className="h-3.5 w-3.5" />
-                              </button>
-                            )}
-                          </div>
+                          <input 
+                            type="number"
+                            value={item.unitPrice}
+                            onChange={(e) => handleUpdateUnitPrice(item.id, e.target.value)}
+                            className="bg-slate-50 border border-slate-200 rounded-lg py-1 px-1.5 text-xs text-center w-20 text-slate-800 font-bold focus:outline-none focus:border-brand-blue-dark"
+                          />
                         </td>
                         <td className="py-3 px-2 text-center text-slate-500 font-bold">
                           {item.gstRate}%
