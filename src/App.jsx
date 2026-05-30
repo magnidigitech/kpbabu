@@ -378,16 +378,20 @@ export default function App() {
       onConfirm: async () => {
         try {
           const res = await fetch(`/api/customers/${id}`, { method: 'DELETE' });
-          const data = await res.json();
-          if (data && data.error) {
-            showToast(`Failed to delete customer: ${data.error}`, "error");
+          if (!res.ok) {
+            let errMsg = `Server error ${res.status}`;
+            try {
+              const errData = await res.json();
+              if (errData?.error) errMsg = errData.error;
+            } catch (_) {}
+            showToast(`Failed to delete customer: ${errMsg}`, "error");
             return;
           }
           setCustomers(customers.filter(x => x.id !== id));
           showToast("Customer record deleted successfully!", "success");
         } catch (error) {
           console.error("Error deleting customer:", error);
-          showToast("Failed to delete customer.", "error");
+          showToast("Failed to delete customer. Check network connection.", "error");
         }
       }
     });
